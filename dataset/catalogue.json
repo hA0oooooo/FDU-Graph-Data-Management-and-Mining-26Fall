@@ -1,0 +1,10 @@
+{
+  "CiteSeer-sub":{"source":"https://github.com/zakimjz/grail/tree/c13a7364fbc185841fc6277cd295acf33a7188f0/Downloads","url":"https://raw.githubusercontent.com/zakimjz/grail/c13a7364fbc185841fc6277cd295acf33a7188f0/Downloads/sigmod09.tar.gz","member":"sigmod09/citeseer_sub_10720.gra","nodes":10720,"edges":44258},
+  "email-EuAll":{"source":"https://snap.stanford.edu/data/email-EuAll.html","url":"https://snap.stanford.edu/data/email-EuAll.txt.gz","nodes":265214,"edges":420045},
+  "web-Google":{"source":"https://snap.stanford.edu/data/web-Google.html","url":"https://snap.stanford.edu/data/web-Google.txt.gz","nodes":875713,"edges":5105039},
+  "web-BerkStan":{"source":"https://snap.stanford.edu/data/web-BerkStan.html","url":"https://snap.stanford.edu/data/web-BerkStan.txt.gz","nodes":685230,"edges":7600595},
+  "wiki-Talk":{"source":"https://snap.stanford.edu/data/wiki-Talk.html","url":"https://snap.stanford.edu/data/wiki-Talk.txt.gz","nodes":2394385,"edges":5021410},
+  "cit-Patents":{"source":"https://snap.stanford.edu/data/cit-Patents.html","url":"https://snap.stanford.edu/data/cit-Patents.txt.gz","nodes":3774768,"edges":16518948},
+  "soc-Pokec":{"source":"https://snap.stanford.edu/data/soc-Pokec.html","url":"https://snap.stanford.edu/data/soc-pokec-relationships.txt.gz","nodes":1632803,"edges":30622564},
+  "soc-LiveJournal1":{"source":"https://snap.stanford.edu/data/soc-LiveJournal1.html","url":"https://snap.stanford.edu/data/soc-LiveJournal1.txt.gz","nodes":4847571,"edges":68993773}
+}

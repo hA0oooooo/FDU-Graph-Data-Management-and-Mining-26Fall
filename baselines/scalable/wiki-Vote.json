@@ -1,0 +1,180 @@
+{
+  "graph": "wiki-Vote.edges",
+  "graph_sha256": "ce412b73034487156e12996258363d13ddbfe3883bdee3aba4ce924876a780c6",
+  "nodes": 7115,
+  "workload": "confirmation.tsv",
+  "workload_sha256": "2183109d8858108e062f199753939f4aa005a70744d605e8c6ccd8d5dcf53cd0",
+  "source_sha256": "a03aece13316fadddd0f1dbb0e25a24bcdf38c7427f9765b6eaf91e90096a123",
+  "compiler": "11.4.0",
+  "b": 1000,
+  "d2_cap": 32,
+  "timeout_each_s": 150,
+  "address_space_gib": 4,
+  "runs": [
+    {
+      "build_s": 0.055529,
+      "queries_s": 0.000854429,
+      "n_queries": 90,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 6115,
+      "residual_edges": 61340,
+      "D1": {
+        "hubs": 1000,
+        "endpoint_labels": 567161,
+        "dense_core_slots": 1000000,
+        "finite_core_distances_including_self": 81100,
+        "omitted_writes": 101651,
+        "bfs_edge_scans": 2014163
+      },
+      "D2": {
+        "hubs": 0,
+        "endpoint_labels": 0,
+        "dense_core_slots": 0,
+        "finite_core_distances_including_self": 0,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 0
+      },
+      "mode": "2",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 30,
+        "beyond_k": 30,
+        "unreachable": 30
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 18432
+    },
+    {
+      "build_s": 0.30699,
+      "queries_s": 0.0025601,
+      "n_queries": 90,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 6115,
+      "residual_edges": 66963,
+      "D1": {
+        "hubs": 1000,
+        "endpoint_labels": 2065893,
+        "dense_core_slots": 1000000,
+        "finite_core_distances_including_self": 274177,
+        "omitted_writes": 1309736,
+        "bfs_edge_scans": 53618074
+      },
+      "D2": {
+        "hubs": 0,
+        "endpoint_labels": 0,
+        "dense_core_slots": 0,
+        "finite_core_distances_including_self": 0,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 0
+      },
+      "mode": "4",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 30,
+        "beyond_k": 30,
+        "unreachable": 30
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 35328
+    },
+    {
+      "build_s": 0.28866,
+      "queries_s": 0.00100579,
+      "n_queries": 90,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 6115,
+      "residual_edges": 66963,
+      "D1": {
+        "hubs": 1000,
+        "endpoint_labels": 2205476,
+        "dense_core_slots": 1000000,
+        "finite_core_distances_including_self": 289192,
+        "omitted_writes": 1554094,
+        "bfs_edge_scans": 69001951
+      },
+      "D2": {
+        "hubs": 0,
+        "endpoint_labels": 0,
+        "dense_core_slots": 0,
+        "finite_core_distances_including_self": 0,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 0
+      },
+      "mode": "6",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 30,
+        "beyond_k": 30,
+        "unreachable": 30
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 36096
+    },
+    {
+      "build_s": 0.376657,
+      "queries_s": 0.0108395,
+      "n_queries": 270,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 6115,
+      "residual_edges": 66963,
+      "D1": {
+        "hubs": 1000,
+        "endpoint_labels": 2209096,
+        "dense_core_slots": 1000000,
+        "finite_core_distances_including_self": 290224,
+        "omitted_writes": 1557654,
+        "bfs_edge_scans": 69363746
+      },
+      "D2": {
+        "hubs": 0,
+        "endpoint_labels": 0,
+        "dense_core_slots": 0,
+        "finite_core_distances_including_self": 0,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 0
+      },
+      "mode": "general",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 90,
+        "beyond_k": 90,
+        "unreachable": 90
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 36864
+    }
+  ],
+  "selfcheck": {
+    "exhaustive_graphs": 512,
+    "random_graphs": 128,
+    "designed_graphs": 1,
+    "oracle_comparisons": 582786,
+    "d2_lowered": 2,
+    "d2_inserted": 13,
+    "errors": 0
+  }
+}

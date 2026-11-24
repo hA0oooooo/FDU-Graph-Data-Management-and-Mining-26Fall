@@ -1,0 +1,180 @@
+{
+  "graph": "p2p-Gnutella31.edges",
+  "graph_sha256": "8cfd1cf35200f4b9fdcc9df93862918ed7fa8449aac30e5a4df83778ce258907",
+  "nodes": 62586,
+  "workload": "confirmation.tsv",
+  "workload_sha256": "7176780aa8798a287ecd656ceb979bc961f1d49bd15e4ab3d9b81aa05499d05c",
+  "source_sha256": "a03aece13316fadddd0f1dbb0e25a24bcdf38c7427f9765b6eaf91e90096a123",
+  "compiler": "11.4.0",
+  "b": 1000,
+  "d2_cap": 32,
+  "timeout_each_s": 150,
+  "address_space_gib": 4,
+  "runs": [
+    {
+      "build_s": 0.0849925,
+      "queries_s": 4.0263e-05,
+      "n_queries": 90,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 61554,
+      "residual_edges": 128317,
+      "D1": {
+        "hubs": 1000,
+        "endpoint_labels": 66655,
+        "dense_core_slots": 1000000,
+        "finite_core_distances_including_self": 2041,
+        "omitted_writes": 879,
+        "bfs_edge_scans": 68965
+      },
+      "D2": {
+        "hubs": 32,
+        "endpoint_labels": 933,
+        "dense_core_slots": 1024,
+        "finite_core_distances_including_self": 32,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 943
+      },
+      "mode": "2",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 30,
+        "beyond_k": 30,
+        "unreachable": 30
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 23808
+    },
+    {
+      "build_s": 0.127893,
+      "queries_s": 0.000122071,
+      "n_queries": 90,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 61554,
+      "residual_edges": 133524,
+      "D1": {
+        "hubs": 1000,
+        "endpoint_labels": 492417,
+        "dense_core_slots": 1000000,
+        "finite_core_distances_including_self": 4190,
+        "omitted_writes": 24089,
+        "bfs_edge_scans": 534087
+      },
+      "D2": {
+        "hubs": 32,
+        "endpoint_labels": 12849,
+        "dense_core_slots": 1024,
+        "finite_core_distances_including_self": 34,
+        "omitted_writes": 31,
+        "bfs_edge_scans": 13060
+      },
+      "mode": "4",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 30,
+        "beyond_k": 30,
+        "unreachable": 30
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 29184
+    },
+    {
+      "build_s": 0.284857,
+      "queries_s": 0.000355433,
+      "n_queries": 90,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 61554,
+      "residual_edges": 136203,
+      "D1": {
+        "hubs": 1000,
+        "endpoint_labels": 4503245,
+        "dense_core_slots": 1000000,
+        "finite_core_distances_including_self": 8674,
+        "omitted_writes": 233109,
+        "bfs_edge_scans": 5594549
+      },
+      "D2": {
+        "hubs": 32,
+        "endpoint_labels": 204962,
+        "dense_core_slots": 1024,
+        "finite_core_distances_including_self": 33,
+        "omitted_writes": 1,
+        "bfs_edge_scans": 244278
+      },
+      "mode": "6",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 30,
+        "beyond_k": 30,
+        "unreachable": 30
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 76800
+    },
+    {
+      "build_s": 1.86677,
+      "queries_s": 0.0170414,
+      "n_queries": 270,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 61586,
+      "residual_edges": 140371,
+      "D1": {
+        "hubs": 1000,
+        "endpoint_labels": 27985765,
+        "dense_core_slots": 1000000,
+        "finite_core_distances_including_self": 281048,
+        "omitted_writes": 7791184,
+        "bfs_edge_scans": 96407203
+      },
+      "D2": {
+        "hubs": 0,
+        "endpoint_labels": 0,
+        "dense_core_slots": 0,
+        "finite_core_distances_including_self": 0,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 0
+      },
+      "mode": "general",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 90,
+        "beyond_k": 90,
+        "unreachable": 90
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 319488
+    }
+  ],
+  "selfcheck": {
+    "exhaustive_graphs": 512,
+    "random_graphs": 128,
+    "designed_graphs": 1,
+    "oracle_comparisons": 582786,
+    "d2_lowered": 2,
+    "d2_inserted": 13,
+    "errors": 0
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "graph": "soc-Pokec.edges",
+  "graph_sha256": "17c9c8acaf3fc563fb4f062295a573626e167ee7c4dd34683f85685e79c61880",
+  "nodes": 1632803,
+  "workload": "test.tsv",
+  "workload_sha256": "97c25d1df58fd4fe2a161084f7f99bc4341518a950f408cc3892d2d96f677b48",
+  "source_sha256": "a03aece13316fadddd0f1dbb0e25a24bcdf38c7427f9765b6eaf91e90096a123",
+  "compiler": "11.4.0",
+  "b": 16,
+  "d2_cap": 4,
+  "timeout_each_s": 150,
+  "address_space_gib": 4,
+  "runs": [
+    {
+      "build_s": 1.93158,
+      "queries_s": 5.6932e-05,
+      "n_queries": 40,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 1632783,
+      "residual_edges": 30554233,
+      "D1": {
+        "hubs": 16,
+        "endpoint_labels": 1495093,
+        "dense_core_slots": 256,
+        "finite_core_distances_including_self": 80,
+        "omitted_writes": 8582,
+        "bfs_edge_scans": 2477874
+      },
+      "D2": {
+        "hubs": 4,
+        "endpoint_labels": 111303,
+        "dense_core_slots": 16,
+        "finite_core_distances_including_self": 6,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 148019
+      },
+      "mode": "2",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 12,
+        "beyond_k": 12,
+        "unreachable": 16
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 685908
+    },
+    {
+      "build_s": 3.63843,
+      "queries_s": 0.000679869,
+      "n_queries": 40,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 1632783,
+      "residual_edges": 30599119,
+      "D1": {
+        "hubs": 16,
+        "endpoint_labels": 7595793,
+        "dense_core_slots": 256,
+        "finite_core_distances_including_self": 39,
+        "omitted_writes": 347552,
+        "bfs_edge_scans": 72173128
+      },
+      "D2": {
+        "hubs": 4,
+        "endpoint_labels": 927184,
+        "dense_core_slots": 16,
+        "finite_core_distances_including_self": 4,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 2203000
+      },
+      "mode": "4",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 12,
+        "beyond_k": 12,
+        "unreachable": 16
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 800404
+    },
+    {
+      "build_s": 9.70323,
+      "queries_s": 0.0169578,
+      "n_queries": 40,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 1632783,
+      "residual_edges": 30600090,
+      "D1": {
+        "hubs": 16,
+        "endpoint_labels": 22477605,
+        "dense_core_slots": 256,
+        "finite_core_distances_including_self": 38,
+        "omitted_writes": 941469,
+        "bfs_edge_scans": 456578758
+      },
+      "D2": {
+        "hubs": 4,
+        "endpoint_labels": 5752829,
+        "dense_core_slots": 16,
+        "finite_core_distances_including_self": 4,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 108450835
+      },
+      "mode": "6",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 12,
+        "beyond_k": 12,
+        "unreachable": 16
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 992840
+    },
+    {
+      "build_s": 11.128,
+      "queries_s": 0.0182911,
+      "n_queries": 120,
+      "d2_lowered": 0,
+      "d2_added": 0,
+      "residual_vertices": 1632783,
+      "residual_edges": 30600227,
+      "D1": {
+        "hubs": 16,
+        "endpoint_labels": 24603347,
+        "dense_core_slots": 256,
+        "finite_core_distances_including_self": 31,
+        "omitted_writes": 883938,
+        "bfs_edge_scans": 512135850
+      },
+      "D2": {
+        "hubs": 4,
+        "endpoint_labels": 6017160,
+        "dense_core_slots": 16,
+        "finite_core_distances_including_self": 4,
+        "omitted_writes": 0,
+        "bfs_edge_scans": 120555760
+      },
+      "mode": "general",
+      "status": "verified",
+      "errors": 0,
+      "by_class": {
+        "within_k": 36,
+        "beyond_k": 36,
+        "unreachable": 48
+      },
+      "errors_by_class": {
+        "within_k": 0,
+        "beyond_k": 0,
+        "unreachable": 0
+      },
+      "peak_rss_kib": 999064
+    }
+  ],
+  "selfcheck": {
+    "exhaustive_graphs": 512,
+    "random_graphs": 128,
+    "designed_graphs": 1,
+    "oracle_comparisons": 582786,
+    "d2_lowered": 2,
+    "d2_inserted": 13,
+    "errors": 0
+  }
+}
