@@ -1,0 +1,21 @@
+{
+  "seed": 27112026,
+  "graph_sha256": "993aa0e6d7ad60e18590ee92513e2b9a48604f0d09b2cc40ba4b15f073f01d6b",
+  "splits": {
+    "holdout-1": {
+      "n": 120,
+      "sources": 8,
+      "sha256": "59bac4a76b33a6e1569216275af3ad2b90cc1426a231d20af6f483fe0144016d"
+    },
+    "holdout-2": {
+      "n": 120,
+      "sources": 8,
+      "sha256": "952cef991888713f8ced356682bb26210939bf58bfd89236ec8c770e0922e622"
+    },
+    "holdout-3": {
+      "n": 120,
+      "sources": 8,
+      "sha256": "4d955bfd1ca563c7f3cf02458e05a812dcf641b5edb62d86e52b5630914b94e7"
+    }
+  }
+}

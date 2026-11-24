@@ -5,6 +5,14 @@
 using namespace khop;
 
 int main() {
+    // Neither one-sided upgrade alone certifies 0 -> 2 through landmark 1.
+    Graph chain(3,{{0,1},{1,2}});
+    Profiles balls={explore(chain.side[0],1,max_radius),explore(chain.side[1],1,max_radius)};
+    std::vector<Query> training={{0,2,2,2}};
+    auto paired=allocate(balls,4,training,{50});
+    assert((paired==Config{1,1}));
+    assert((allocate(balls,3,training,{50})==Config{0,0}));
+    assert((allocate(balls,4,training,{3})==Config{0,0}));
     Count checked=0;
     for (int mask=0;mask<512;++mask) {
         std::vector<std::pair<Node,Node>> edges;

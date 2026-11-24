@@ -1,4 +1,4 @@
-// Independent full single-source distances; the methods under test never see d.
+// Independent full single-source distances for the frozen workload oracle.
 #include "../../src/radius/graph.hpp"
 #include <filesystem>
 #include <random>
@@ -52,7 +52,9 @@ void sample_source(const Graph& g, Node s, std::mt19937& rng, std::vector<Query>
 }
 
 int main(int argc,char** argv) {
-    if (argc!=5) throw std::runtime_error("workloads N graph.edges excluded-sources.txt output-dir");
+    if (argc<5 || argc>7) throw std::runtime_error("workloads N graph.edges excluded.txt output [confirm [seed]]");
+    bool confirm=argc>=6 && std::string(argv[5])=="confirm";
+    if (argc>=6 && !confirm) throw std::runtime_error("expected confirm");
     Graph g=Graph::load(std::stoul(argv[1]),argv[2]);
     std::ifstream exclusion(argv[3]);
     if (!exclusion) throw std::runtime_error("missing exclusion file");
@@ -61,11 +63,13 @@ int main(int argc,char** argv) {
     while (exclusion>>s) used.insert(s);
     std::vector<Node> pool(g.n);
     std::iota(pool.begin(),pool.end(),0);
-    std::mt19937 rng(25112026);
+    std::mt19937 rng(argc==7?std::stoul(argv[6]):(confirm?27112026:25112026));
     std::shuffle(pool.begin(),pool.end(),rng);
     bool stress=g.n>=1000000 || g.side[1].neighbors.size()>=10000000;
     std::filesystem::create_directories(argv[4]);
-    for (std::string split:{"train","validation","test"}) {
+    std::vector<std::string> names=confirm?std::vector<std::string>{"holdout-1","holdout-2","holdout-3"}
+                                          :std::vector<std::string>{"train","validation","test"};
+    for (const auto& split:names) {
         int active=0,sinks=0;
         std::vector<Query> rows;
         for (Node u:pool) {
