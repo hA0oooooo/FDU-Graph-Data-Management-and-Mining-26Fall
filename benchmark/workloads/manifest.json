@@ -1,5 +1,6 @@
 {
   "seed": 20261125,
+  "confirmation_seed": 20261126,
   "max_queries_per_k_class": 30,
   "graphs": {
     "p2p-Gnutella31": {
@@ -35,6 +36,34 @@
         "rows": 270,
         "sources": 69,
         "sha256": "a721143bff87f5d6359920615ba44df2a2d2f57a084b3a3e899d215b43bb9eeb",
+        "by_k": {
+          "2": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "4": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "6": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          }
+        }
+      },
+      "confirmation": {
+        "rows": 270,
+        "sources": 68,
+        "sha256": "7176780aa8798a287ecd656ceb979bc961f1d49bd15e4ab3d9b81aa05499d05c",
         "by_k": {
           "2": {
             "positive": 30,
@@ -114,6 +143,34 @@
             "unreachable": 30,
             "at_k": 15,
             "at_k_plus_one": 7
+          }
+        }
+      },
+      "confirmation": {
+        "rows": 270,
+        "sources": 70,
+        "sha256": "2183109d8858108e062f199753939f4aa005a70744d605e8c6ccd8d5dcf53cd0",
+        "by_k": {
+          "2": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "4": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "6": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 29
           }
         }
       }

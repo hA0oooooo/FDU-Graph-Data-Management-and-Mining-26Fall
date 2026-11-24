@@ -1,0 +1,93 @@
+{
+  "split": "confirmation",
+  "upstream_commit": "d893a28de9bf8f407ed24ebefc973f973be1e923",
+  "compiler": "11.4.0",
+  "results": [
+    {
+      "name": "cycle-isolate",
+      "nodes": 6,
+      "edges": 6,
+      "queries": 252,
+      "truth_groups": {
+        "within_k": 112,
+        "beyond_k": 21,
+        "unreachable": 119
+      },
+      "mismatches": 0,
+      "first_mismatches": [],
+      "reversed_by_author": false,
+      "logical_index_bytes": 165,
+      "build_ms": 0.055,
+      "batch_query_ms": 0.003,
+      "process_ms": 232.799,
+      "process_peak_kib": 471552
+    },
+    {
+      "name": "reverse-and-isolate",
+      "nodes": 9,
+      "edges": 8,
+      "queries": 810,
+      "truth_groups": {
+        "within_k": 245,
+        "beyond_k": 35,
+        "unreachable": 530
+      },
+      "mismatches": 0,
+      "first_mismatches": [],
+      "reversed_by_author": true,
+      "logical_index_bytes": 229,
+      "build_ms": 0.063,
+      "batch_query_ms": 0.007,
+      "process_ms": 291.907,
+      "process_peak_kib": 471552
+    },
+    {
+      "name": "wiki-Vote",
+      "nodes": 7115,
+      "edges": 103689,
+      "queries": 270,
+      "truth_groups": {
+        "within_k": 90,
+        "beyond_k": 90,
+        "unreachable": 90
+      },
+      "mismatches": 0,
+      "first_mismatches": [],
+      "reversed_by_author": true,
+      "logical_index_bytes": 952285,
+      "build_ms": 7.358,
+      "batch_query_ms": 0.692,
+      "process_ms": 344.996,
+      "process_peak_kib": 477696,
+      "input_sha256": {
+        "wiki-Vote.nodes.tsv": "af0c002768de30c9e43e558b3270c2b25a7f30e0f6c67455ce94060dde8dcb43",
+        "wiki-Vote.edges": "ce412b73034487156e12996258363d13ddbfe3883bdee3aba4ce924876a780c6",
+        "confirmation.tsv": "2183109d8858108e062f199753939f4aa005a70744d605e8c6ccd8d5dcf53cd0"
+      }
+    },
+    {
+      "name": "p2p-Gnutella31",
+      "nodes": 62586,
+      "edges": 147892,
+      "queries": 270,
+      "truth_groups": {
+        "within_k": 90,
+        "beyond_k": 90,
+        "unreachable": 90
+      },
+      "mismatches": 0,
+      "first_mismatches": [],
+      "reversed_by_author": false,
+      "logical_index_bytes": 2194761,
+      "build_ms": 20.072,
+      "batch_query_ms": 0.854,
+      "process_ms": 295.088,
+      "process_peak_kib": 484608,
+      "input_sha256": {
+        "p2p-Gnutella31.nodes.tsv": "72095ace59e146206e8fe6fa621344323e97e25a9048aaa768ab7df716246309",
+        "p2p-Gnutella31.edges": "8cfd1cf35200f4b9fdcc9df93862918ed7fa8449aac30e5a4df83778ce258907",
+        "confirmation.tsv": "7176780aa8798a287ecd656ceb979bc961f1d49bd15e4ab3d9b81aa05499d05c"
+      }
+    }
+  ]
+}

@@ -6,3 +6,4 @@ __pycache__/
 /baselines/esti/build/
 /baselines/esti/.cache/
 /build/
+/results/local/

@@ -1,0 +1,147 @@
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <fstream>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <sys/resource.h>
+#include <vector>
+
+using Adj = std::vector<std::vector<int>>;
+using Clock = std::chrono::steady_clock;
+using Nanoseconds = std::chrono::nanoseconds;
+
+struct KReach {
+    const Adj &out, &in;
+    int k;
+    std::vector<bool> covered;
+    std::vector<std::vector<uint32_t>> rows;
+    uint64_t entries = 0, bfs_scans = 0;
+    int roots = 0;
+
+    KReach(const Adj& out, const Adj& in, int k)
+        : out(out), in(in), k(k), covered(out.size()), rows(out.size()) {
+        // Take endpoints of every first uncovered edge in a deterministic order.
+        for (int u = 0; u < static_cast<int>(out.size()); ++u) {
+            if (covered[u]) continue;
+            for (int v : out[u]) {
+                if (!covered[v]) {
+                    covered[u] = covered[v] = true;
+                    break;
+                }
+            }
+        }
+
+        std::vector<int> visited(out.size(), -1), depth(out.size()), queue;
+        queue.reserve(out.size());
+        for (int root = 0; root < static_cast<int>(out.size()); ++root) {
+            if (!covered[root]) continue;
+            ++roots;
+            queue.clear();
+            queue.push_back(root);
+            visited[root] = root;
+            depth[root] = 0;
+            for (size_t i = 0; i < queue.size(); ++i) {
+                const int u = queue[i];
+                if (depth[u] == k) break;
+                bfs_scans += out[u].size();
+                for (int v : out[u]) {
+                    if (visited[v] == root) continue;
+                    visited[v] = root;
+                    depth[v] = depth[u] + 1;
+                    queue.push_back(v);
+                    if (covered[v]) {
+                        const unsigned tier = std::max(0, depth[v] - (k - 2));
+                        rows[root].push_back((uint32_t(v) << 2) | tier);
+                    }
+                }
+            }
+            std::sort(rows[root].begin(), rows[root].end());
+            entries += rows[root].size();
+        }
+    }
+
+    bool core(int u, int v, int endpoint_hops) const {
+        if (u == v) return true;  // Implicit zero-length core, k >= 2.
+        const auto& row = rows[u];
+        const uint32_t key = uint32_t(v) << 2;
+        auto it = std::lower_bound(row.begin(), row.end(), key);
+        return it != row.end() && *it <= key + (2 - endpoint_hops);
+    }
+
+    bool query(int s, int t) const {
+        if (s == t) return true;
+        if (covered[s] && covered[t]) return core(s, t, 0);
+        if (covered[s]) {
+            for (int v : in[t]) if (core(s, v, 1)) return true;
+        } else if (covered[t]) {
+            for (int u : out[s]) if (core(u, t, 1)) return true;
+        } else {
+            for (int u : out[s])
+                for (int v : in[t])
+                    if (core(u, v, 2)) return true;
+        }
+        return false;
+    }
+};
+
+struct Query { int s, t; bool truth; };
+
+int main(int argc, char** argv) {
+    if (argc != 5) {
+        std::cerr << "usage: kreach N EDGES WORKLOAD K\n";
+        return 2;
+    }
+    const int n = std::stoi(argv[1]), k = std::stoi(argv[4]);
+    if (n < 0 || n > (1 << 30) || k < 2)
+        throw std::invalid_argument("requires 0 <= N <= 2^30 and K >= 2");
+    Adj out(n), in(n);
+    std::ifstream graph(argv[2]), workload(argv[3]);
+    if (!graph || !workload) throw std::runtime_error("cannot open input");
+    int s, t, query_k, d;
+    while (graph >> s >> t) {
+        out.at(s).push_back(t);
+        in.at(t).push_back(s);
+    }
+    std::string header;
+    std::getline(workload, header);
+    std::vector<Query> queries;
+    while (workload >> s >> t >> query_k >> d) {
+        if (query_k == k) queries.push_back({s, t, 0 <= d && d <= k});
+    }
+    if (queries.empty()) throw std::runtime_error("no queries with requested K");
+
+    const auto start = Clock::now();
+    KReach index(out, in, k);
+    const auto build_ns = std::chrono::duration_cast<Nanoseconds>(Clock::now() - start).count();
+    std::vector<uint8_t> answers(queries.size());
+    std::vector<long long> batch_ns;
+    int errors = 0, positives = 0, cases[4] = {};
+    for (const auto& q : queries) {
+        ++cases[2 * !index.covered[q.s] + !index.covered[q.t]];
+        positives += q.truth;
+    }
+    for (int rep = 0; rep < 7; ++rep) {
+        const auto begin = Clock::now();
+        for (size_t i = 0; i < queries.size(); ++i) {
+            answers[i] = index.query(queries[i].s, queries[i].t);
+        }
+        batch_ns.push_back(std::chrono::duration_cast<Nanoseconds>(Clock::now() - begin).count());
+        int mismatches = 0;
+        for (size_t i = 0; i < queries.size(); ++i)
+            mismatches += answers[i] != queries[i].truth;
+        errors = std::max(errors, mismatches);
+    }
+    const auto first_ns = batch_ns.front();
+    std::sort(batch_ns.begin(), batch_ns.end());
+    rusage usage{};
+    getrusage(RUSAGE_SELF, &usage);
+    std::cout << k << '\t' << index.roots << '\t' << index.entries << '\t'
+              << index.bfs_scans << '\t' << build_ns << '\t' << usage.ru_maxrss << '\t'
+              << queries.size() << '\t' << positives << '\t' << errors << '\t'
+              << first_ns << '\t' << batch_ns[3];
+    for (int count : cases) std::cout << '\t' << count;
+    std::cout << '\n';
+    return errors ? 1 : 0;
+}

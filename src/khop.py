@@ -107,13 +107,16 @@ class Index:
             self.radii.append((inward.radius, outward.radius))
             self._labels.append((inward.distance, outward.distance,
                                  inward.radius + 1, outward.radius + 1))
+        # With only roots stored, the lower bound is <=1 and any two-leg
+        # witness has identical endpoints. Both trivial cases are handled first.
+        self._query_labels = self._labels if any(a or b for a, b in self.radii) else ()
 
     def query(self, s, t, k):
         if k < 0:
             raise ValueError("negative hop bound")
         if s == t or k == 0:
             return s == t, "trivial", 0
-        for inward, outward, in_clip, out_clip in self._labels:
+        for inward, outward, in_clip, out_clip in self._query_labels:
             to_root = inward.get(s, in_clip)
             from_root = outward.get(t, out_clip)
             if to_root < in_clip and from_root < out_clip and to_root + from_root <= k:

@@ -8,6 +8,7 @@ import random
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = 20261125
+CONFIRMATION_SEED = 20261126
 KS = (2, 4, 6)
 PER_CLASS = 30
 
@@ -30,6 +31,20 @@ def pick_sources(adj, pool):
     active = [s for s in pool if adj[s]][:64]
     sinks = [s for s in pool if not adj[s]][:12]
     return active + sinks
+
+
+def source_splits(adj, graph):
+    permutation = list(range(len(adj)))
+    random.Random(f"{SEED}/{graph}/sources").shuffle(permutation)
+    selected = set()
+    for i, name in enumerate(("validation", "test")):
+        sources = pick_sources(adj, permutation[i::2])
+        selected.update(sources)
+        yield name, sources, SEED
+    # Exclude *candidates* even when none of their targets survived stratification.
+    remaining = [s for s in range(len(adj)) if s not in selected]
+    random.Random(f"{CONFIRMATION_SEED}/{graph}/sources").shuffle(remaining)
+    yield "confirmation", pick_sources(adj, remaining), CONFIRMATION_SEED
 
 
 def diverse_order(per_source, rng):
@@ -78,7 +93,12 @@ def build_workload(adj, sources, rng):
 def write_split(folder, split, rows):
     content = "s\tt\tk\td\n" + "".join(f"{s}\t{t}\t{k}\t{d}\n" for s, t, k, d in rows)
     raw = content.encode("ascii")
-    (folder / f"{split}.tsv").write_bytes(raw)
+    target = folder / f"{split}.tsv"
+    if target.exists():
+        if target.read_bytes() != raw:
+            raise ValueError(f"regenerated workload differs from frozen {target}")
+    else:
+        target.write_bytes(raw)
     summary = {}
     for k in KS:
         ds = [d for _, _, threshold, d in rows if threshold == k]
@@ -102,19 +122,17 @@ def main():
         for line in raw.splitlines():
             u, v = map(int, line.split())
             adj[u].append(v)
-        permutation = list(range(len(adj)))
-        random.Random(f"{SEED}/{name}/sources").shuffle(permutation)
         folder = output / name
         folder.mkdir(parents=True, exist_ok=True)
         all_stats[name] = {}
-        for i, split in enumerate(("validation", "test")):
-            rng = random.Random(f"{SEED}/{name}/{split}")
-            sources = pick_sources(adj, permutation[i::2])
+        for split, sources, seed in source_splits(adj, name):
+            rng = random.Random(f"{seed}/{name}/{split}")
             rows = build_workload(adj, sources, rng)
             assert len(rows) == len({(s, t, k) for s, t, k, _ in rows})
             all_stats[name][split] = write_split(folder, split, rows)
             print(f"{name} {split}: {len(rows)} queries", flush=True)
-    summary = dict(seed=SEED, max_queries_per_k_class=PER_CLASS, graphs=all_stats)
+    summary = dict(seed=SEED, confirmation_seed=CONFIRMATION_SEED,
+                   max_queries_per_k_class=PER_CLASS, graphs=all_stats)
     (output / "manifest.json").write_text(json.dumps(summary, indent=2) + "\n")
 
 

@@ -2,6 +2,7 @@
 import argparse
 import csv
 import gc
+import hashlib
 import json
 import math
 import os
@@ -17,23 +18,29 @@ sys.path.insert(0, str(ROOT / "src"))
 from khop import IndexBudgetError, bfs, bibfs, build_index, choose_landmarks
 
 
+def verify_hash(path, expected):
+    if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+        raise ValueError(f"file differs from frozen manifest: {path}")
+
+
 def read_graph(name):
-    pairs = []
-    with (ROOT / "dataset" / "prepared" / f"{name}.edges").open() as f:
+    spec = json.loads((ROOT / "dataset/manifest.json").read_text())[name]
+    path = ROOT / "dataset/prepared" / f"{name}.edges"
+    verify_hash(path, spec["edges_sha256"])
+    out = [[] for _ in range(spec["nodes"])]
+    inc = [[] for _ in out]
+    with path.open() as f:
         for line in f:
-            u, v = line.split()
-            pairs.append((int(u), int(v)))
-    n = max(max(edge) for edge in pairs) + 1
-    out = [[] for _ in range(n)]
-    inc = [[] for _ in range(n)]
-    for u, v in pairs:
-        out[u].append(v)
-        inc[v].append(u)
+            u, v = map(int, line.split())
+            out[u].append(v)
+            inc[v].append(u)
     return out, inc
 
 
 def read_split(name, split):
     path = ROOT / "benchmark" / "workloads" / name / f"{split}.tsv"
+    manifest = json.loads((path.parent.parent / "manifest.json").read_text())
+    verify_hash(path, manifest["graphs"][name][split]["sha256"])
     with path.open() as f:
         return [tuple(int(row[key]) for key in ("s", "t", "k", "d"))
                 for row in csv.DictReader(f, delimiter="\t")]
@@ -83,7 +90,7 @@ def memory_probe(out, inc, roots, mode, h, cap):
 
 
 def tune(out, inc, roots, cap, valid, validation):
-    scores = []
+    candidates = []
     for h in range(7):
         start = perf_counter()
         try:
@@ -91,18 +98,20 @@ def tune(out, inc, roots, cap, valid, validation):
         except IndexBudgetError as err:
             validation.append(dict(h=h, feasible=False, build_s=perf_counter()-start,
                                    build_scans=err.build_scans, reason=str(err)))
-            continue
-        query_us = []
-        for _ in range(3):
+            break  # The label count for a uniform radius is monotone.
+        row = dict(h=h, feasible=True, entries=idx.entries, build_s=metrics["build_s"],
+                   build_scans=idx.build_scans, repetitions_us=[])
+        validation.append(row)
+        candidates.append((idx, row))
+        timed_pass(idx.query, valid)
+    for repeat in range(6):
+        pivot = repeat % len(candidates)
+        for idx, row in candidates[pivot:] + candidates[:pivot]:
             times, _ = timed_pass(idx.query, valid)
-            query_us.append(sum(times) / len(valid) / 1000)
-        score = median(query_us)
-        validation.append(dict(h=h, feasible=True, entries=idx.entries,
-                               build_s=metrics["build_s"], build_scans=idx.build_scans, val_mean_us=score,
-                               repetitions_us=query_us))
-        scores.append((score, h))
-        del idx
-    return min(scores)[1]
+            row["repetitions_us"].append(sum(times) / len(valid) / 1000)
+    for _, row in candidates:
+        row["val_mean_us"] = median(row["repetitions_us"])
+    return min((row["val_mean_us"], row["h"]) for _, row in candidates)[1]
 
 
 def write_csv(path, rows):
@@ -118,10 +127,10 @@ def distance_class(d, k):
     return "within_k" if d <= k else "beyond_k"
 
 
-def benchmark(name, dest):
+def benchmark(name, split, dest):
     dest.mkdir(parents=True, exist_ok=True)
     valid = read_split(name, "validation")
-    test = read_split(name, "test")
+    test = read_split(name, split)
     if {s for s, *_ in valid} & {s for s, *_ in test}:
         raise ValueError("validation and test sources overlap")
     out, inc = read_graph(name)
@@ -142,7 +151,9 @@ def benchmark(name, dest):
     summaries, by_class, test_runs = [], [], []
     methods = list(queries)
     last_events = {}
-    for repeat in range(5):
+    for method in methods:
+        timed_pass(queries[method], test)
+    for repeat in range(12):
         order = methods[repeat % len(methods):] + methods[:repeat % len(methods)]
         for method in order:
             times, events = timed_pass(queries[method], test)
@@ -177,7 +188,7 @@ def benchmark(name, dest):
     write_csv(dest / "summary.csv", summaries)
     write_csv(dest / "repeats.csv", test_runs)
     write_csv(dest / "by_class.csv", by_class)
-    metadata = dict(graph=name, nodes=len(out), edges=sum(map(len, out)),
+    metadata = dict(graph=name, split=split, nodes=len(out), edges=sum(map(len, out)),
                     python=platform.python_version(), cpu_affinity=sorted(os.sched_getaffinity(0)),
                     entry_cap=cap, landmarks=roots, landmark_selection_s=select_s,
                     uniform_validation=validation, uniform_tuning_s=tuning_s,
@@ -188,6 +199,7 @@ def benchmark(name, dest):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--graph", choices=["wiki-Vote", "p2p-Gnutella31"], required=True)
+    parser.add_argument("--split", choices=["test", "confirmation"], default="confirmation")
     parser.add_argument("--output", type=Path, required=True, help="results directory for this graph")
     args = parser.parse_args()
-    benchmark(args.graph, args.output)
+    benchmark(args.graph, args.split, args.output)

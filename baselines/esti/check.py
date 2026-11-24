@@ -39,7 +39,7 @@ def fixtures():
         yield name, out, queries
 
 
-def load_graph(name):
+def load_graph(name, split):
     prepared = REPO / "dataset" / "prepared"
     node_path = prepared / f"{name}.nodes.tsv"
     edge_path = prepared / f"{name}.edges"
@@ -49,7 +49,7 @@ def load_graph(name):
         for line in f:
             u, v = map(int, line.split())
             out[u].append(v)
-    query_path = REPO / "benchmark" / "workloads" / name / "test.tsv"
+    query_path = REPO / "benchmark" / "workloads" / name / f"{split}.tsv"
     with query_path.open() as f:
         queries = [tuple(int(row[key]) for key in ("s", "t", "k", "d"))
                    for row in csv.DictReader(f, delimiter="\t")]
@@ -100,6 +100,7 @@ def check(name, out, queries):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("graphs", nargs="*", help="prepared graphs (fixtures always run)")
+    ap.add_argument("--split", choices=("test", "confirmation"), default="test")
     ap.add_argument("--output", type=Path)
     args = ap.parse_args()
     for name in args.graphs:
@@ -113,9 +114,9 @@ def main():
                            (256 * 1024**2 if hard == resource.RLIM_INFINITY else min(hard, 256 * 1024**2), hard))
     rows = [check(name, out, qs) for name, out, qs in fixtures()]
     for name in args.graphs:
-        out, qs, hashes = load_graph(name)
+        out, qs, hashes = load_graph(name, args.split)
         rows.append(dict(check(name, out, qs), input_sha256=hashes))
-    report = json.dumps(dict(upstream_commit=REV, compiler=subprocess.check_output(
+    report = json.dumps(dict(split=args.split, upstream_commit=REV, compiler=subprocess.check_output(
         ["g++", "-dumpfullversion"], text=True).strip(), results=rows), indent=2) + "\n"
     if args.output:
         args.output.write_text(report)
