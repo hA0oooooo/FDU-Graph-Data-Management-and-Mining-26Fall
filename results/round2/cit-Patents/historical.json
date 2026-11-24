@@ -1,0 +1,54 @@
+{
+  "graph": "cit-Patents",
+  "graph_sha256": "a42e20dc3732fddc28b7056f3281d3fb0f722ccf067be240a92e3cb03fe9709e",
+  "test_sha256": "e7e22dca30638bcb218fc76fb92465ee99b1e88dfc3109bc99aa2aa0c5da5dda",
+  "kreach": [
+    {
+      "limit_seconds": 20,
+      "wall_s": 10.220740212127566,
+      "code": 0,
+      "status": "passed",
+      "k": 2,
+      "roots": 2845429,
+      "entries": 63395559,
+      "build_bfs_edge_scans": 83731839,
+      "build_ns": 4951374638,
+      "process_peak_kib": 953856,
+      "queries": 36,
+      "positives": 12,
+      "mismatches": 0,
+      "first_batch_ns": 4109,
+      "median_batch_ns": 346,
+      "both_core": 28,
+      "source_core": 6,
+      "target_core": 2,
+      "neither_core": 0
+    },
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.091065457789227,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 4
+    },
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.08516521495767,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 6
+    }
+  ],
+  "esti": {
+    "limit_seconds": 100,
+    "wall_s": 8.346680772025138,
+    "code": 0,
+    "status": "passed",
+    "queries": 99,
+    "mismatches": 0,
+    "build_ms": 4487.804,
+    "batch_ms": 0.907
+  }
+}

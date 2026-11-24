@@ -1,0 +1,11 @@
+graph	test_n	bfs	bibfs	uniform	workload	K-Reach 2012 k=2	K-Reach 2012 k=4	K-Reach 2012 k=6	Scalable 2014	gen-k-reach	ESTI	vcrea	vcrea-plus	pll
+CiteSeer-sub	346	ok	ok	ok	ok	ok (20s)	ok (20s)	ok (20s)	3/3	ok	ok	ok (120s; 2048MiB)	ok (120s; 2048MiB)	ok (120s; 2048MiB)
+cit-Patents	99	ok	ok	ok	ok	ok (20s)	ok (120s)	memory_limit (120s)	3/3	ok	ok	timeout (180s; 4096MiB)	timeout (180s; 4096MiB)	timeout (180s; 4096MiB)
+email-EuAll	416	ok	ok	ok	ok	ok (20s)	ok (20s)	ok (20s)	3/3	ok	ok	ok (120s; 2048MiB)	ok (120s; 2048MiB)	ok (120s; 2048MiB)
+p2p-Gnutella31	447	ok	ok	ok	ok	ok (20s)	ok (20s)	ok (20s)	3/3	ok	ok	ok (120s; 2048MiB)	ok (120s; 2048MiB)	ok (120s; 2048MiB)
+soc-LiveJournal1	120	ok	ok	ok	ok	memory_limit (120s)	time_limit (120s)	time_limit (120s)	3/3	ok	exceeds_upstream_capacity / maxm adjusted ok	timeout (180s; 4096MiB)	timeout (180s; 4096MiB)	timeout (180s; 4096MiB)
+soc-Pokec	120	ok	ok	ok	ok	memory_limit (120s)	time_limit (120s)	time_limit (120s)	3/3	ok	ok	timeout (180s; 4096MiB)	timeout (180s; 4096MiB)	timeout (180s; 4096MiB)
+web-BerkStan	418	ok	ok	ok	ok	ok (20s)	memory_limit (120s)	memory_limit (120s)	3/3	ok	ok	ok (120s; 2048MiB)	ok (120s; 2048MiB)	ok (120s; 2048MiB)
+web-Google	433	ok	ok	ok	ok	ok (20s)	ok (120s)	time_limit (120s)	3/3	ok	ok	ok (180s; 4096MiB)	ok (180s; 4096MiB)	timeout (180s; 4096MiB)
+wiki-Talk	109	ok	ok	ok	ok	ok (20s)	time_limit (120s)	time_limit (120s)	3/3	ok	ok	ok (180s; 4096MiB)	ok (180s; 4096MiB)	ok (180s; 4096MiB)
+wiki-Vote	341	ok	ok	ok	ok	ok (20s)	ok (20s)	ok (20s)	3/3	ok	ok	ok (120s; 2048MiB)	ok (120s; 2048MiB)	ok (120s; 2048MiB)

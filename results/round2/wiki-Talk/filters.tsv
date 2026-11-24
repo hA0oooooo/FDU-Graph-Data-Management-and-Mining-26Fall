@@ -1,0 +1,11 @@
+filter	repeat	queries	build_ms	hits	scans	mean_us
+scc-two-orders	1	109	849.772	18	29811	2.29975
+scc-two-orders	2	109	849.772	18	29811	1.94478
+scc-two-orders	3	109	849.772	18	29811	1.79833
+scc-two-orders	4	109	849.772	18	29811	1.76404
+scc-two-orders	5	109	849.772	18	29811	1.81812
+cover-tree	1	109	69.0388	7	29833	2.22379
+cover-tree	2	109	69.0388	7	29833	1.78928
+cover-tree	3	109	69.0388	7	29833	1.77704
+cover-tree	4	109	69.0388	7	29833	1.7163
+cover-tree	5	109	69.0388	7	29833	1.6628

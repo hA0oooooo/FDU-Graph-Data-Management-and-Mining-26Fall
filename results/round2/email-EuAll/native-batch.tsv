@@ -1,0 +1,6 @@
+method	n	batch_ms
+bfs	416	191.531
+bibfs	416	0.612214
+uniform	416	0.39861
+structural	416	1.67227
+workload	416	0.545172

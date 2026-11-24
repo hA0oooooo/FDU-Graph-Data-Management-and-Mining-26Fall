@@ -1,0 +1,50 @@
+{
+  "graph": "web-BerkStan",
+  "nodes": 685230,
+  "source_sha256": "12c03791b60984f44a153b1d7c9abab6cd0f7054bd7d118d8870f99d8faf58dc",
+  "flags": [
+    "-O3",
+    "-std=c++17"
+  ],
+  "compiler": "11.4.0",
+  "child_address_cap_bytes": 2147483648,
+  "wall_timeout_s": 120,
+  "degree_threshold": 1,
+  "edges_sha256": "d49ff34c96e43e4b510b26d49967e92e541248328196ffaaf92925c23ef7bd09",
+  "queries_file": "test.tsv",
+  "queries_sha256": "014ca9c423b688427668ad4c8fe9fcfaae3eb00cf8115c0d85a54957e6b53094",
+  "results": [
+    {
+      "graph": "web-BerkStan",
+      "method": "pll",
+      "queries": 418,
+      "hubs": 685230,
+      "labels": 109893896,
+      "encoded_bytes": 243339397,
+      "vector_capacity_bytes": 352202786,
+      "build_scans": 1327082464,
+      "popped_vertices": 176724810,
+      "witnessed_candidates": 66830914,
+      "build_ns": 73183394064,
+      "query_ns": 260905,
+      "process_peak_kib": 567444,
+      "status": "ok",
+      "by_class": {
+        "within_k": {
+          "n": 134,
+          "mismatches": 0
+        },
+        "beyond_k": {
+          "n": 116,
+          "mismatches": 0
+        },
+        "unreachable": {
+          "n": 168,
+          "mismatches": 0
+        }
+      },
+      "first_mismatches": [],
+      "elapsed_s": 74.1945472790394
+    }
+  ]
+}

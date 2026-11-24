@@ -1,0 +1,36 @@
+{
+  "graph": "cit-Patents",
+  "graph_sha256": "a42e20dc3732fddc28b7056f3281d3fb0f722ccf067be240a92e3cb03fe9709e",
+  "test_sha256": "e7e22dca30638bcb218fc76fb92465ee99b1e88dfc3109bc99aa2aa0c5da5dda",
+  "kreach": [
+    {
+      "limit_seconds": 120,
+      "wall_s": 56.956631554989144,
+      "code": 0,
+      "status": "passed",
+      "k": 4,
+      "roots": 2845429,
+      "entries": 530318826,
+      "build_bfs_edge_scans": 821336868,
+      "build_ns": 51007562713,
+      "process_peak_kib": 3466752,
+      "queries": 33,
+      "positives": 10,
+      "mismatches": 0,
+      "first_batch_ns": 5537,
+      "median_batch_ns": 562,
+      "both_core": 27,
+      "source_core": 4,
+      "target_core": 2,
+      "neither_core": 0
+    },
+    {
+      "limit_seconds": 120,
+      "wall_s": 118.09898449410684,
+      "code": -6,
+      "status": "failed",
+      "detail": "terminate called after throwing an instance of 'std::bad_alloc'\n  what():  std::bad_alloc\ntimeout: the monitored command dumped core",
+      "k": 6
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "graph": "wiki-Talk",
+  "nodes": 2394385,
+  "source_sha256": "12c03791b60984f44a153b1d7c9abab6cd0f7054bd7d118d8870f99d8faf58dc",
+  "flags": [
+    "-O3",
+    "-std=c++17"
+  ],
+  "compiler": "11.4.0",
+  "child_address_cap_bytes": 4294967296,
+  "wall_timeout_s": 180,
+  "degree_threshold": 1,
+  "edges_sha256": "3b235fbd2f5d49c95efcd018f1d9c8d1c61b5799302d36fc562c371ef211a4e6",
+  "queries_file": "test.tsv",
+  "queries_sha256": "02bb6a70f7f2d61cac01e50975675dd734180f32aded1cdb809ae789c7e76be7",
+  "results": [
+    {
+      "graph": "wiki-Talk",
+      "method": "vcrea-plus",
+      "queries": 109,
+      "hubs": 56321,
+      "labels": 89317936,
+      "encoded_bytes": 182034608,
+      "vector_capacity_bytes": 262010104,
+      "build_scans": 1083084393,
+      "popped_vertices": 540243354,
+      "witnessed_candidates": 212608129,
+      "build_ns": 98504048688,
+      "query_ns": 71990,
+      "process_peak_kib": 719808,
+      "status": "ok",
+      "by_class": {
+        "within_k": {
+          "n": 33,
+          "mismatches": 0
+        },
+        "beyond_k": {
+          "n": 28,
+          "mismatches": 0
+        },
+        "unreachable": {
+          "n": 48,
+          "mismatches": 0
+        }
+      },
+      "first_mismatches": [],
+      "elapsed_s": 99.89451294206083
+    }
+  ]
+}

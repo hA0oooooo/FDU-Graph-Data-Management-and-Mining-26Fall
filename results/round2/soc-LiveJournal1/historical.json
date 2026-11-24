@@ -1,0 +1,48 @@
+{
+  "graph": "soc-LiveJournal1",
+  "graph_sha256": "993aa0e6d7ad60e18590ee92513e2b9a48604f0d09b2cc40ba4b15f073f01d6b",
+  "test_sha256": "ba22cb13df2e7fbb0bbbcc920eb6a4e1a7c4e87f0d4c9b290d6909a2002b4fab",
+  "kreach": [
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.09199818596244,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 2
+    },
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.080617811065167,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 4
+    },
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.0871127077844,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 6
+    }
+  ],
+  "esti": {
+    "status": "exceeds_upstream_capacity",
+    "vertex_slots": 30000000,
+    "edge_slots": 60000000
+  },
+  "esti_expanded": {
+    "limit_seconds": 100,
+    "wall_s": 24.141483827959746,
+    "code": 0,
+    "status": "passed",
+    "edge_slots": 73841345,
+    "modification": "maxm only",
+    "queries": 120,
+    "mismatches": 0,
+    "build_ms": 9851.518,
+    "batch_ms": 162.664
+  }
+}

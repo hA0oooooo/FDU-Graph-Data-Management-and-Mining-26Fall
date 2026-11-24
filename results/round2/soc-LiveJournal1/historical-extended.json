@@ -1,0 +1,31 @@
+{
+  "graph": "soc-LiveJournal1",
+  "graph_sha256": "993aa0e6d7ad60e18590ee92513e2b9a48604f0d09b2cc40ba4b15f073f01d6b",
+  "test_sha256": "ba22cb13df2e7fbb0bbbcc920eb6a4e1a7c4e87f0d4c9b290d6909a2002b4fab",
+  "kreach": [
+    {
+      "limit_seconds": 120,
+      "wall_s": 70.78707735799253,
+      "code": -6,
+      "status": "failed",
+      "detail": "terminate called after throwing an instance of 'std::bad_alloc'\n  what():  std::bad_alloc\ntimeout: the monitored command dumped core",
+      "k": 2
+    },
+    {
+      "limit_seconds": 120,
+      "wall_s": 120.26711337105371,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 4
+    },
+    {
+      "limit_seconds": 120,
+      "wall_s": 120.17121642897837,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 6
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "graph": "wiki-Talk",
+  "graph_sha256": "3b235fbd2f5d49c95efcd018f1d9c8d1c61b5799302d36fc562c371ef211a4e6",
+  "test_sha256": "02bb6a70f7f2d61cac01e50975675dd734180f32aded1cdb809ae789c7e76be7",
+  "kreach": [
+    {
+      "limit_seconds": 20,
+      "wall_s": 16.210910727037117,
+      "code": 0,
+      "status": "passed",
+      "k": 2,
+      "roots": 93422,
+      "entries": 157472700,
+      "build_bfs_edge_scans": 1162806886,
+      "build_ns": 14926412466,
+      "process_peak_kib": 1049088,
+      "queries": 37,
+      "positives": 11,
+      "mismatches": 0,
+      "first_batch_ns": 10684,
+      "median_batch_ns": 649,
+      "both_core": 3,
+      "source_core": 12,
+      "target_core": 8,
+      "neither_core": 14
+    },
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.02386465598829,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 4
+    },
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.039693978149444,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 6
+    }
+  ],
+  "esti": {
+    "limit_seconds": 100,
+    "wall_s": 2.4322068667970598,
+    "code": 0,
+    "status": "passed",
+    "queries": 109,
+    "mismatches": 0,
+    "build_ms": 1047.772,
+    "batch_ms": 0.337
+  }
+}

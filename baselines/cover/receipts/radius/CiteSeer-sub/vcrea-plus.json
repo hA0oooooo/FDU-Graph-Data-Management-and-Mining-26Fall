@@ -1,0 +1,50 @@
+{
+  "graph": "CiteSeer-sub",
+  "nodes": 10720,
+  "source_sha256": "12c03791b60984f44a153b1d7c9abab6cd0f7054bd7d118d8870f99d8faf58dc",
+  "flags": [
+    "-O3",
+    "-std=c++17"
+  ],
+  "compiler": "11.4.0",
+  "child_address_cap_bytes": 2147483648,
+  "wall_timeout_s": 120,
+  "degree_threshold": 1,
+  "edges_sha256": "10cf264e448716da217793db53562cb4546109c1421e135ef7d36a8d9c6f2d08",
+  "queries_file": "test.tsv",
+  "queries_sha256": "b2bee88d9add64385510a67587551141f53468e6d67437b6cd36aeeacd44fe62",
+  "results": [
+    {
+      "graph": "CiteSeer-sub",
+      "method": "vcrea-plus",
+      "queries": 346,
+      "hubs": 4682,
+      "labels": 118580,
+      "encoded_bytes": 277574,
+      "vector_capacity_bytes": 392208,
+      "build_scans": 279130,
+      "popped_vertices": 169064,
+      "witnessed_candidates": 46799,
+      "build_ns": 29747709,
+      "query_ns": 49187,
+      "process_peak_kib": 9756,
+      "status": "ok",
+      "by_class": {
+        "within_k": {
+          "n": 115,
+          "mismatches": 0
+        },
+        "beyond_k": {
+          "n": 63,
+          "mismatches": 0
+        },
+        "unreachable": {
+          "n": 168,
+          "mismatches": 0
+        }
+      },
+      "first_mismatches": [],
+      "elapsed_s": 0.04287242190912366
+    }
+  ]
+}

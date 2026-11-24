@@ -1,0 +1,50 @@
+{
+  "graph": "email-EuAll",
+  "nodes": 265214,
+  "source_sha256": "12c03791b60984f44a153b1d7c9abab6cd0f7054bd7d118d8870f99d8faf58dc",
+  "flags": [
+    "-O3",
+    "-std=c++17"
+  ],
+  "compiler": "11.4.0",
+  "child_address_cap_bytes": 2147483648,
+  "wall_timeout_s": 120,
+  "degree_threshold": 1,
+  "edges_sha256": "b7241851a685bb6bbcc19a6259984da9c43e1bf795910bbb2265768428512fbb",
+  "queries_file": "test.tsv",
+  "queries_sha256": "89d2527b5541c1b5ff86595085d7801f2afd609f7e31f7ddeb50c2ded5ae3ec3",
+  "results": [
+    {
+      "graph": "email-EuAll",
+      "method": "pll",
+      "queries": 416,
+      "hubs": 265214,
+      "labels": 13714610,
+      "encoded_bytes": 28524892,
+      "vector_capacity_bytes": 40538792,
+      "build_scans": 33375055,
+      "popped_vertices": 17311411,
+      "witnessed_candidates": 3596801,
+      "build_ns": 3465419483,
+      "query_ns": 149673,
+      "process_peak_kib": 101156,
+      "status": "ok",
+      "by_class": {
+        "within_k": {
+          "n": 136,
+          "mismatches": 0
+        },
+        "beyond_k": {
+          "n": 112,
+          "mismatches": 0
+        },
+        "unreachable": {
+          "n": 168,
+          "mismatches": 0
+        }
+      },
+      "first_mismatches": [],
+      "elapsed_s": 3.577738996827975
+    }
+  ]
+}

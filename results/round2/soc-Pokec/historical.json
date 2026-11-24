@@ -1,0 +1,41 @@
+{
+  "graph": "soc-Pokec",
+  "graph_sha256": "17c9c8acaf3fc563fb4f062295a573626e167ee7c4dd34683f85685e79c61880",
+  "test_sha256": "97c25d1df58fd4fe2a161084f7f99bc4341518a950f408cc3892d2d96f677b48",
+  "kreach": [
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.10839447705075,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 2
+    },
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.059503855882213,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 4
+    },
+    {
+      "limit_seconds": 20,
+      "wall_s": 20.04569829814136,
+      "code": 124,
+      "status": "time_limit",
+      "detail": "",
+      "k": 6
+    }
+  ],
+  "esti": {
+    "limit_seconds": 100,
+    "wall_s": 10.349839363014325,
+    "code": 0,
+    "status": "passed",
+    "queries": 120,
+    "mismatches": 0,
+    "build_ms": 4060.8,
+    "batch_ms": 71.564
+  }
+}
