@@ -1,0 +1,122 @@
+{
+  "seed": 20261125,
+  "max_queries_per_k_class": 30,
+  "graphs": {
+    "p2p-Gnutella31": {
+      "validation": {
+        "rows": 270,
+        "sources": 74,
+        "sha256": "3e5f0cf27ccbdc6038533014285e5352bbf7df9fc7d679e1801be795a14d91dd",
+        "by_k": {
+          "2": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "4": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "6": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          }
+        }
+      },
+      "test": {
+        "rows": 270,
+        "sources": 69,
+        "sha256": "a721143bff87f5d6359920615ba44df2a2d2f57a084b3a3e899d215b43bb9eeb",
+        "by_k": {
+          "2": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "4": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "6": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          }
+        }
+      }
+    },
+    "wiki-Vote": {
+      "validation": {
+        "rows": 257,
+        "sources": 71,
+        "sha256": "bb1d117dd033c79950edec74a377b15e6d9eabc0ae17b8adcc85b136fbe0dbce",
+        "by_k": {
+          "2": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "4": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "6": {
+            "positive": 30,
+            "too_far": 17,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 17
+          }
+        }
+      },
+      "test": {
+        "rows": 247,
+        "sources": 68,
+        "sha256": "203935549decc2c39b4b957e8b0733a7504ceaa1c199fda0e0657ec511b46a43",
+        "by_k": {
+          "2": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "4": {
+            "positive": 30,
+            "too_far": 30,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 15
+          },
+          "6": {
+            "positive": 30,
+            "too_far": 7,
+            "unreachable": 30,
+            "at_k": 15,
+            "at_k_plus_one": 7
+          }
+        }
+      }
+    }
+  }
+}

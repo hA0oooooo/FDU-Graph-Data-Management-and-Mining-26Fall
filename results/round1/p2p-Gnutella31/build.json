@@ -1,0 +1,232 @@
+{
+  "graph": "p2p-Gnutella31",
+  "nodes": 62586,
+  "edges": 147892,
+  "python": "3.13.12",
+  "cpu_affinity": [
+    12
+  ],
+  "entry_cap": 250344,
+  "landmarks": [
+    5319,
+    31908,
+    164,
+    62098,
+    51268,
+    850,
+    61196,
+    7578,
+    24017,
+    36715,
+    51687,
+    58404
+  ],
+  "landmark_selection_s": 0.01966202980838716,
+  "uniform_validation": [
+    {
+      "h": 0,
+      "feasible": true,
+      "entries": 24,
+      "build_s": 5.831685848534107e-05,
+      "build_scans": 0,
+      "val_mean_us": 11.490722222222223,
+      "repetitions_us": [
+        13.58151111111111,
+        11.490722222222223,
+        10.497200000000001
+      ]
+    },
+    {
+      "h": 1,
+      "feasible": true,
+      "entries": 744,
+      "build_s": 0.0003130959812551737,
+      "build_scans": 720,
+      "val_mean_us": 11.723396296296295,
+      "repetitions_us": [
+        11.912207407407408,
+        11.723396296296295,
+        11.236718518518519
+      ]
+    },
+    {
+      "h": 2,
+      "feasible": true,
+      "entries": 3435,
+      "build_s": 0.0011956521775573492,
+      "build_scans": 3466,
+      "val_mean_us": 10.959566666666667,
+      "repetitions_us": [
+        10.959566666666667,
+        10.786088888888889,
+        10.991762962962962
+      ]
+    },
+    {
+      "h": 3,
+      "feasible": true,
+      "entries": 12993,
+      "build_s": 0.0046211660373955965,
+      "build_scans": 13275,
+      "val_mean_us": 11.318044444444444,
+      "repetitions_us": [
+        11.318044444444444,
+        11.268337037037037,
+        11.461807407407406
+      ]
+    },
+    {
+      "h": 4,
+      "feasible": true,
+      "entries": 43522,
+      "build_s": 0.016579165123403072,
+      "build_scans": 47165,
+      "val_mean_us": 12.196985185185186,
+      "repetitions_us": [
+        12.402407407407408,
+        12.196985185185186,
+        11.895692592592594
+      ]
+    },
+    {
+      "h": 5,
+      "feasible": true,
+      "entries": 120962,
+      "build_s": 0.05011588102206588,
+      "build_scans": 150591,
+      "val_mean_us": 13.081922222222222,
+      "repetitions_us": [
+        16.214496296296296,
+        13.081922222222222,
+        12.795237037037037
+      ]
+    },
+    {
+      "h": 6,
+      "feasible": false,
+      "build_s": 0.11531287292018533,
+      "build_scans": 374468,
+      "reason": "index does not fit the label-entry budget"
+    }
+  ],
+  "uniform_tuning_s": 0.25140817696228623,
+  "chosen_uniform_h": 2,
+  "builds": {
+    "uniform": {
+      "radius_limit": 2,
+      "build_s": 0.0011248770169913769,
+      "entries": 3435,
+      "build_scans": 3466,
+      "radii_in_out": [
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ]
+      ],
+      "traced_index_bytes": 144528,
+      "traced_build_peak_bytes": 177376
+    },
+    "adaptive": {
+      "radius_limit": 6,
+      "build_s": 0.12003170303069055,
+      "entries": 239901,
+      "build_scans": 373443,
+      "radii_in_out": [
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ]
+      ],
+      "traced_index_bytes": 10591744,
+      "traced_build_peak_bytes": 12762148
+    }
+  }
+}

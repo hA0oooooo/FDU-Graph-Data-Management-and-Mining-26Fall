@@ -1,0 +1,22 @@
+{
+  "p2p-Gnutella31": {
+    "source": "https://snap.stanford.edu/data/p2p-Gnutella31.html",
+    "url": "https://snap.stanford.edu/data/p2p-Gnutella31.txt.gz",
+    "nodes": 62586,
+    "rows": 147892,
+    "edges": 147892,
+    "self_loops": 0,
+    "raw_sha256": "20cf3b0642718e7628c7aa15a41b21e663aea872946878d5b9abc80ee360f869",
+    "edges_sha256": "8cfd1cf35200f4b9fdcc9df93862918ed7fa8449aac30e5a4df83778ce258907"
+  },
+  "wiki-Vote": {
+    "source": "https://snap.stanford.edu/data/wiki-Vote.html",
+    "url": "https://snap.stanford.edu/data/wiki-Vote.txt.gz",
+    "nodes": 7115,
+    "rows": 103689,
+    "edges": 103689,
+    "self_loops": 0,
+    "raw_sha256": "7d3e53626e14b8b09fb3b396bece9d481ad606bd64ceab066349ff57d4ada7fc",
+    "edges_sha256": "ce412b73034487156e12996258363d13ddbfe3883bdee3aba4ce924876a780c6"
+  }
+}
