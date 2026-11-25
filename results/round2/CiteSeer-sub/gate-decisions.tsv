@@ -1,7 +1,0 @@
-policy	k	n	wins	median_fraction_saved	enabled	reason
-uniform	2	131	0	0	0	zero-radius
-uniform	4	117	0	0	0	zero-radius
-uniform	6	105	0	0	0	zero-radius
-workload	2	131	0	0	0	zero-radius
-workload	4	117	0	0	0	zero-radius
-workload	6	105	0	0	0	zero-radius
