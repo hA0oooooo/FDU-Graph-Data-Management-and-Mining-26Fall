@@ -1,0 +1,31 @@
+{
+  "nodes": 2048,
+  "graph_sha256": "871f7a41d74e89e293be9a0ee50b488d2b7ae94c5b0eb2bac7d1e5f310265dca",
+  "seed": 25112026,
+  "splits": {
+    "train": {
+      "sha256": "4332595b7c776767831090e81cf26381d4b2630012be40dd5bf92cccf742461f",
+      "queries": 444,
+      "sources": 28,
+      "within": 144,
+      "beyond": 132,
+      "unreachable": 168
+    },
+    "validation": {
+      "sha256": "c22c33a12256b6e956cdd398315070cec745f1a9c4fc00478887f78f5f34070a",
+      "queries": 446,
+      "sources": 28,
+      "within": 144,
+      "beyond": 134,
+      "unreachable": 168
+    },
+    "test": {
+      "sha256": "70e56bd0f7133cf68d124f23b59bb4d301f6f09e2ecb49631ae51c0fb00b5e7e",
+      "queries": 439,
+      "sources": 28,
+      "within": 144,
+      "beyond": 127,
+      "unreachable": 168
+    }
+  }
+}

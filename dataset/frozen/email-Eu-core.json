@@ -1,0 +1,13 @@
+{
+  "nodes": 1005,
+  "rows": 25571,
+  "edges": 25571,
+  "self_loops": 642,
+  "duplicates": 0,
+  "isolated": 0,
+  "raw_bytes": 79754,
+  "raw_sha256": "4b47acdb80197b085fe63c819c357ae488131ee904ed93d1b219a68b0f9e245f",
+  "edges_bytes": 192698,
+  "edges_sha256": "e9886e36e45be2589b4467467b74314982fb26aa8befec6edb6ac1c6bbcb40cf",
+  "node_map_sha256": "5cca3d5b82ba187f93ceb1ffe1574d03d0cb6e8cd49b5a78ba71f12006c5639d"
+}

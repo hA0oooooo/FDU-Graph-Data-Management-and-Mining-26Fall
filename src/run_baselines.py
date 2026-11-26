@@ -148,7 +148,8 @@ def write_coverage(output, selected, query_name="test.tsv"):
 
 
 def main():
-    graphs = read_json(ROOT / "dataset/manifest.json") | read_json(ROOT / "dataset/catalogue.json")
+    synthetic = read_json(ROOT / "dataset/synthetic.json")
+    graphs = read_json(ROOT / "dataset/manifest.json") | read_json(ROOT / "dataset/catalogue.json") | synthetic
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("graphs", nargs="*", metavar="GRAPH",
                         help="graph names or all")
@@ -199,8 +200,11 @@ def main():
     for graph in selected:
         edges = ROOT / "dataset/prepared" / f"{graph}.edges"
         if not edges.exists():
-            script="prepare.py" if graph in ("wiki-Vote","p2p-Gnutella31") else "freeze.py"
+            script = ("generate_synthetic.py" if graph in synthetic else
+                      "prepare.py" if graph in ("wiki-Vote","p2p-Gnutella31") else "freeze.py")
             subprocess.run([sys.executable, ROOT/"src"/script,graph], check=True)
+        if args.query_name=="benchmark.tsv" and not (WORKLOADS/graph/args.query_name).exists():
+            subprocess.run([sys.executable, ROOT/"src/prepare_benchmark.py",graph],check=True)
     if not (ESTI_CACHE / "esti").exists():
         build_esti()
     search = compile_tool("search")
