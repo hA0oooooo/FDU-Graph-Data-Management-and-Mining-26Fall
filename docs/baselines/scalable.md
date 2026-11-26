@@ -12,12 +12,12 @@ Cheng 等人在 *Efficient processing of k-hop reachability queries* 的算法 3
 
 [查询和构建](../../src/baselines/scalable/scalable.cpp)按算法 3 标记被覆盖点，覆盖状态与入选关键点独立。选点平局时优先尚未覆盖者，其后按顶点号。BFS 每点取一个由有序邻接表决定的最短路前驱。普通点的标签按方向存储，核心间精确距离用稠密矩阵表示，空槽与对角线都占空间。残余图只保留普通点之间的原始边，顶点沿用原编号。其双搜交替扩一层，正反深度之和不超过 $k$，未使用多线程
 
-本次默认第一层预算 $b=1000$ 与论文的大图实验一致，第二层至多选 32 个根，若全部覆盖则提前停止。这一上限将论文依可用内存停止的条件具体化，供重复试验；它不等价于精确的标签条数预算，也不能与自适应方法的 $4|V|$ 条记录直接对齐。每个原生进程另设 4 GiB 地址空间上限，默认每个配置 150 秒墙钟上限。构建时间包括选点、标签、修正、分配和残余图生成，查询时间是给已经装入的查询批次计算答案并写入内存缓冲的时间。GNU time 记录全进程峰值 RSS，两种计量包括的对象不同
+本次默认第一层预算 $b=1000$ 与论文的大图实验一致，第二层至多选 128 个根，若全部覆盖则提前停止。这一上限将论文依可用内存停止的条件具体化，供重复试验；它不等价于精确的标签条数预算，也不能与自适应方法的 $4|V|$ 条记录直接对齐。正式运行每个原生进程设 48 GiB 地址空间上限，默认没有墙钟时限。构建时间包括选点、标签、修正、分配和残余图生成，查询时间是给已经装入的查询批次计算答案并写入内存缓冲的时间。GNU time 记录全进程峰值 RSS，两种计量包括的对象不同
 
 ```sh
 python3 src/baselines/scalable/run.py \
   --graph dataset/prepared/wiki-Vote.edges --nodes 7115 \
-  --queries dataset/workloads/wiki-Vote/test.tsv \
+  --queries dataset/workloads/wiki-Vote/benchmark.tsv \
   --output output/baselines/wiki-vote-scalable.json
 ```
 
@@ -25,4 +25,4 @@ python3 src/baselines/scalable/run.py \
 
 ##### 公共实验配置
 
-少于十万顶点的图取 $b=1000$，第二层最多 32 个根。大图取 $b=16$，第二层最多 4 个根。每个固定阈值独立建表，通用阈值另建一套。单配置时限 150 秒，地址空间上限 4 GiB。每次运行先在合成图上核对跨层距离缩短、跨层补边和 Floyd–Warshall 真值，随后保存每种配置的建表时间、查询时间、峰值内存与逐类错误数。[独立自检](../../src/baselines/scalable/selfcheck.cpp)
+十五张正式图均取 $b=1000$，第二层最多 128 个根。每个固定阈值独立建表，通用阈值另建一套。无墙钟上限，每项地址空间上限 48 GiB。每次运行先在合成图上核对跨层距离缩短、跨层补边和 Floyd–Warshall 真值，随后保存每种配置的建表时间、查询时间、峰值内存与逐类错误数。[独立自检](../../src/baselines/scalable/selfcheck.cpp)

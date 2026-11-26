@@ -2,15 +2,16 @@
 #include <iostream>
 using namespace khop;
 int main(int argc,char** argv) {
-    if(argc!=4)return 2;
+    if(argc<4 || argc>5)return 2;
     auto g=Graph::load(std::stoul(argv[1]),argv[2]); const auto& rev=g.side[0];
     std::cout<<"split\tclass\tchecked\n";
-    for(std::string split:{"train","validation","test"}) {
+    const std::vector<std::string> splits=argc==5 ? std::vector<std::string>{argv[4]} : std::vector<std::string>{"train","validation","test"};
+    for(const std::string& split:splits) {
         std::ifstream file(std::string(argv[3])+"/"+split+".tsv");
         std::string header;std::getline(file,header);Query q;unsigned counts[3]={};
         while(file>>q.s>>q.t>>q.k>>q.d) {
             int bin=q.d<0?2:q.d>q.k?1:0;
-            if(counts[bin]>=2)continue;
+            if(counts[bin]>=(argc==5?8:2))continue;
             ++counts[bin];
             std::vector<int> d(g.n,-1);d[q.t]=0;
             std::vector<Node> frontier{q.t};

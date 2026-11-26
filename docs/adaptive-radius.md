@@ -42,4 +42,4 @@ $$
 
 ##### 运行入口
 
-后续如需研究该方案，先用 `src/radius/run.py` 生成半径配置和 `build.tsv`。换源点复核用 `src/radius/confirm.py` 并指定该次输出的 `--build`。分阈值开关的选择和复查分别用 `src/radius/gate.py` 与 `src/radius/gate_summary.py`，两者读取同一份 `--build`。重复实验可用 `--output` 写入 `output/adaptive-radius/` 下不同的日期或提交号目录。该方案现阶段单独维护，基线入口只运行既有方法
+后续研究该方案时，通过 `python3 src/radius/run.py --help` 查看统一入口，使用 `--query-name benchmark.tsv` 生成半径配置和 `build.tsv`，最终测试与历史基线使用相同冻结查询。换源点复核用 `src/radius/confirm.py` 并指定该次输出的 `--build`。分阈值开关的选择和复查分别用 `src/radius/gate.py` 与 `src/radius/gate_summary.py`，两者读取同一份 `--build`。重复实验可用 `--output` 写入 `output/adaptive-radius/` 下不同的日期或提交号目录。该方案现阶段单独维护，基线入口只运行既有方法

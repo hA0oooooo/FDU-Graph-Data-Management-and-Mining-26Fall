@@ -25,15 +25,30 @@ VCRea 算法 2、4 印为 $d_{BFS}>Q_{old}$ 时剪枝。按完整 BFS，$d_{BFS}
 ```sh
 python3 src/baselines/cover/run.py --fixtures-only --output output/baselines/cover-fixtures.json
 python3 src/baselines/cover/run.py --graph wiki-Vote --nodes 7115 \
-  --queries dataset/workloads/wiki-Vote/test.tsv \
+  --queries dataset/workloads/wiki-Vote/benchmark.tsv \
   --methods vcrea vcrea-plus pll vcrea-strict vcrea-plus-strict \
-  --timeout 180 --memory-mib 4096 --output output/baselines/cover-wiki.json
+  --memory-mib 49152 --output output/baselines/cover-wiki.json
 ```
 
 25 张校验图覆盖孤立点、自环、反向边、环、共享核心、两类非核心端点及多字节距离。在 24 张小图上用独立 Floyd–Warshall 与完整 BFS 交叉生成所有点对的答案；另在 301 点链上核对不同方向与长跳边界。每个运行变体都核对 7,650 条查询，还以“照常完整 BFS、只省略等长记录”的参考构造核对去冗余版本的标签数与结果。[校验程序](../../src/baselines/cover/run.py)
 
-建表时间包含覆盖选点或顶点排序、正反搜索、标签写入，读图与编译另计。索引编码字节只计有效数据；容量还包含标签向量的预留空间，二者均不含行容器、邻接表或搜索工作区。进程峰值 RSS 为 Linux KiB。查询为单线程 C++ 的一批不同请求，构建一次、查询一遍，结果与 Python 多轮延迟口径分开记录。地址空间和整进程时限是执行预算，触发时记录失败且不填性能数据
+建表时间包含覆盖选点或顶点排序、正反搜索、标签写入，读图与编译另计。索引编码字节只计有效数据；容量还包含标签向量的预留空间，二者均不含行容器、邻接表或搜索工作区。进程峰值 RSS 为 Linux KiB。查询为单线程 C++ 的一批不同请求，构建一次、查询一遍，结果与 Python 多轮延迟口径分开记录。地址空间是构建预算，触发分配失败时保存日志且不填完整性能数据
 
 ##### 公共实验配置
 
-批量入口运行去冗余 VCRea、VCRea+ 和有向 PLL，统一给每个图和方法 180 秒整进程时限与 4 GiB 地址空间。每项回执记录冻结输入哈希、源代码哈希、资源限制、逐类错答数与完成状态。字面严格构建作为单独的机制自检，可用上面的 `--methods` 显式运行
+批量入口运行去冗余 VCRea、VCRea+ 和有向 PLL，正式运行默认无整进程时限，每个图和方法 48 GiB 地址空间。每项回执记录冻结输入哈希、源代码哈希、资源限制、逐类错答数与完成状态。字面严格构建作为单独的机制自检，可用上面的 `--methods` 显式运行
+
+##### 完整标签容量核验
+
+对给定枢纽顺序，若从当前枢纽 $r$ 到某可接收标签的点 $v$ 的全部最短路径都未经过排名早于 $r$ 的枢纽，则这条方向标签必须写入。因为旧标签的查询证据若覆盖当前最短距离，就能拼出一条经过旧枢纽的同长最短路径，与条件矛盾。沿任一最短路径到 $v$ 的前缀也不可能被旧证据剪掉
+
+[容量核验](../../src/baselines/cover/capacity.cpp)逐层维护最短距离是否存在经过旧枢纽的路径，每次同时传播最多 64 个独立根的位集，只统计半径内满足上述条件的接收点。两方向计数相加；VCRea+ 的接收点集合包含 VCRea 的接收点集合，二者共享枢纽顺序。根区间彼此不重叠时可以求和，已有构建前缀也可以直接计入。每条编码至少需要一字节枢纽排名差、一字节距离，故 $2N$ 是 $N$ 条已证明必要标签的字节下界。该核验在 564 张小图上比对了标量计数、位集计数与三个完整构建器的结果
+
+运行示例（该工具只做容量核验，不生成索引或查询结果）
+
+```sh
+g++ -O3 -march=native -std=c++17 -fopenmp src/baselines/cover/capacity.cpp -o cache/historical/cover-capacity
+cache/historical/cover-capacity soc-Pokec 1632803 dataset/prepared/soc-Pokec.edges cover 0 1024 6 8
+```
+
+实际大图证据按连续根区间保存，包含根排序、已建前缀、两个方向的计数与容量限制。只有编码下界严格超过指定预算，且原运行的输入、方法和信号回执匹配时，汇总才接受 capacity_proved 状态

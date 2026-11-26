@@ -33,7 +33,7 @@ def input_for(graph, spec, query_name):
     return work, edges, queries
 
 
-FAMILIES = ("search", "esti", "scalable", "labels", "kreach")
+FAMILIES = ("search", "esti", "scalable", "vcrea", "vcrea-plus", "pll", "kreach")
 
 
 def run_family(graph, spec, family, output, search, args):
@@ -55,8 +55,8 @@ def run_family(graph, spec, family, output, search, args):
             launch("baselines/scalable/run.py", "--graph", edges, "--nodes", nodes, "--queries", queries,
                    "--b", args.b, "--d2-cap", args.d2_cap, "--memory-gib", args.memory_gib,
                    "--output", result, log=log, check=False)
-        elif family == "labels":
-            launch("baselines/cover/matrix.py", graph, "--memory-mib", args.memory_gib*1024,
+        elif family in ("vcrea","vcrea-plus","pll"):
+            launch("baselines/cover/matrix.py", graph, "--methods", family, "--memory-mib", args.memory_gib*1024,
                    "--query-name", args.query_name, "--output", output / "labels", log=log)
         else:
             result = target / f"{family}.json"
@@ -72,79 +72,19 @@ def run_family(graph, spec, family, output, search, args):
     print(f"{graph}: {family} complete", flush=True)
 
 
-def review(graph, output, query_name="test.tsv"):
-    target = output / graph
-    combined = target / "historical.json"
-    receipts = [read_json(combined)] if combined.exists() else [
-        read_json(target / "esti.json"), read_json(target / "kreach.json")]
-    historical = receipts[0].copy()
-    for receipt in receipts[1:]:
-        historical.update(receipt)
-    scalable = read_json(target / "scalable.json")
-    queries = WORKLOADS / graph / query_name
-    frozen = read_json(queries.parent / "manifest.json" if query_name=="test.tsv" else queries.with_suffix(".json"))
-    test = frozen["splits"][queries.stem]
-    n = test["queries"]
-    k_counts = {}
-    for query in read_rows(queries):
-        k = int(query["k"])
-        k_counts[k] = k_counts.get(k, 0) + 1
-    if sorted(k_counts) != [2, 4, 6]:
-        raise ValueError(f"{graph}: expected k=2,4,6")
-    if any(r["test_sha256"] != test["sha256"] for r in receipts) or scalable["workload_sha256"] != test["sha256"]:
-        raise ValueError(f"{graph}: query receipt mismatch")
-    if any(r["graph_sha256"] != frozen["graph_sha256"] for r in receipts) or scalable["graph_sha256"] != frozen["graph_sha256"]:
-        raise ValueError(f"{graph}: graph receipt mismatch")
-
-    rows = []
-
-    def record(method, status, expected, checked=None, errors=None):
-        if status in ("ok", "passed", "verified"):
-            status = "verified" if checked == expected and errors == 0 else "invalid"
-        rows.append(dict(graph=graph, method=method, status=status, expected=expected,
-                         checked=checked, mismatches=errors))
-
-    for row in read_rows(target / "search.tsv"):
-        errors = int(row["mismatches"])
-        record(row["method"], "mismatch" if errors else "verified", n, int(row["queries"]), errors)
-    for row in historical["kreach"]:
-        status = "allocation_failed" if "bad_alloc" in row.get("detail", "") else row["status"]
-        record(f"kreach-{row['k']}", status, k_counts[row["k"]], row.get("queries"), row.get("mismatches"))
-    for method in ("esti", "esti_expanded"):
-        if method in historical:
-            row = historical[method]
-            record(method, row["status"], n, row.get("queries"), row.get("mismatches"))
-    for row in scalable["runs"]:
-        mode = row["mode"]
-        record("gen-k-reach" if mode == "general" else f"scalable-{mode}", row["status"],
-               n if mode == "general" else k_counts[int(mode)], row.get("n_queries"), row.get("errors"))
-    for method in ("vcrea", "vcrea-plus", "pll"):
-        receipt = read_json(output / "labels" / graph / f"{method}.json")
-        if (receipt["edges_sha256"], receipt["queries_sha256"]) != (frozen["graph_sha256"], test["sha256"]):
-            raise ValueError(f"{graph}: {method} receipt mismatch")
-        row = receipt["results"][0]
-        classes = row.get("by_class")
-        record(method, row["status"], n, sum(c["n"] for c in classes.values()) if classes else None,
-               sum(c["mismatches"] for c in classes.values()) if classes else None)
-    expected = {"bfs", "bibfs", "esti", "gen-k-reach", "vcrea", "vcrea-plus", "pll"}
-    expected |= {f"{method}-{k}" for method in ("kreach", "scalable") for k in k_counts}
-    if historical["esti"]["status"] == "exceeds_upstream_capacity":
-        expected.add("esti_expanded")
-    if len(rows) != len(expected) or {row["method"] for row in rows} != expected:
-        raise ValueError(f"{graph}: incomplete baseline matrix")
-    return rows
-
-
 def write_coverage(output, selected, query_name="test.tsv"):
-    rows = [row for name in selected for row in review(name, output, query_name)]
-    with (output / "coverage.tsv").open("w") as file:
-        writer = csv.DictWriter(file, fieldnames=rows[0], delimiter="\t", lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
-    print(f"{len(rows)} baseline configurations recorded in {output / 'coverage.tsv'}")
-    valid = {"verified", "timeout", "time_limit", "allocation_failed", "exceeds_upstream_capacity"}
-    if any(row["status"] not in valid for row in rows):
-        raise SystemExit("Inspect the failed configurations in coverage.tsv")
+    from report_baselines import records, write_table
+    config=read_json(output/"run.json")
+    if config.get("query_name","test.tsv")!=query_name or set(config["graphs"])!=set(selected):
+        raise ValueError("review configuration differs from run")
+    rows=[r for graph in selected for r in records(output,graph,config)]
+    write_table(output/"coverage.tsv",[
+        {k:r[k] for k in ("graph","method","status","expected","checked","mismatches")} for r in rows])
+    write_table(output/"performance.tsv",rows)
+    print(f"{len(rows)} baseline configurations recorded in {output/'coverage.tsv'}")
+    valid={"verified","timeout","time_limit","allocation_failed","capacity_proved","exceeds_upstream_capacity"}
+    if any(r["status"] not in valid for r in rows):
+        raise SystemExit("Incomplete or failed configurations remain in coverage.tsv")
 
 
 def main():

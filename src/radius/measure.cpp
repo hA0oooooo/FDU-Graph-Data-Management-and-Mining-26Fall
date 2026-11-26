@@ -58,8 +58,9 @@ struct Method {
     double build_ms;
 };
 int main(int argc,char** argv) {
-    if (argc!=5 && argc!=6) throw std::runtime_error("measure N graph.edges workload_dir output_dir [fixed_k]");
-    const int fixed_k=argc==6?std::stoi(argv[5]):-1;
+    if (argc<5 || argc>7) throw std::runtime_error("measure N graph.edges workload_dir output_dir [fixed_k [test-file]]");
+    const int fixed_k=argc>=6?std::stoi(argv[5]):-1;
+    const std::string test_file=argc==7?argv[6]:"test.tsv";
     Graph g=Graph::load(std::stoul(argv[1]),argv[2]);
     Path data=argv[3], dest=argv[4];
     std::filesystem::create_directories(dest);
@@ -138,7 +139,7 @@ int main(int argc,char** argv) {
     }
     p.clear(); p.shrink_to_fit();
     // The test split is first opened after every configuration has been chosen.
-    auto test=load_queries(data/"test.tsv",g.n,fixed_k);
+    auto test=load_queries(data/test_file,g.n,fixed_k);
     std::ofstream repeats(dest/"repeats.tsv");
     repeats<<"method\trepeat\tn\tmean_us\tp95_us\tscans\tupper\tlower\ttrivial\tfallback\n";
     auto emit=[&](const std::string& m,int rep,const Run& r) {

@@ -68,7 +68,8 @@ def esti(n, m, edges, rows, work, adapted=False, memory_gib=48):
     with (work / "graph").open("w") as f:
         subprocess.run([writer, str(n), str(m), edges], stdout=f, check=True)
     (work / "queries").write_text("".join(f"{s} {t} -2 {k}\n" for s, t, k, d in rows))
-    p, rec = run_limited([binary, "graph", "queries", "cyc"], work, None, memory_gib)
+    p, rec = run_limited(["/usr/bin/time", "-f", "%M", "-o", "peak-kib.txt",
+                          binary, "graph", "queries", "cyc"], work, None, memory_gib)
     if adapted:
         rec.update(edge_slots=m+n+1, modification="maxm only")
     if p.returncode:
@@ -79,7 +80,9 @@ def esti(n, m, edges, rows, work, adapted=False, memory_gib=48):
     rec.update(queries=len(rows), mismatches=sum((x=="1") != (0<=d<=k)
                for x, (_, _, k, d) in zip(answers, rows)),
                build_ms=float(re.search(r"construction time: ([\d.]+) ms", p.stdout)[1]),
-               batch_ms=float(re.search(r"query time: ([\d.]+) ms", p.stdout)[1]))
+               batch_ms=float(re.search(r"query time: ([\d.]+) ms", p.stdout)[1]),
+               index_bytes=int(re.search(r"index size: (\d+) bytes", p.stdout)[1]),
+               process_peak_kib=int((work / "peak-kib.txt").read_text().strip()))
     if rec["mismatches"]:
         rec["status"] = "mismatch"
     return rec

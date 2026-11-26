@@ -71,6 +71,7 @@ def main():
     ap.add_argument("--nodes", required=True, type=int)
     ap.add_argument("--fixed-k", choices=[2,4,6], type=int, help="select, build and evaluate using just this threshold")
     ap.add_argument("--prepare-only", action="store_true")
+    ap.add_argument("--query-name", choices=["test.tsv","benchmark.tsv"], default="test.tsv")
     ap.add_argument("--output", type=Path, help="measurement directory; defaults to output/adaptive-radius/<graph>")
     a = ap.parse_args()
     edges = ROOT / "dataset/prepared" / (a.graph + ".edges")
@@ -85,13 +86,20 @@ def main():
     for name, spec in manifest["splits"].items():
         if digest(work / (name + ".tsv")) != spec["sha256"]:
             raise ValueError("query file changed: " + name)
+    if a.query_name != "test.tsv":
+        benchmark=work/a.query_name
+        spec=json.loads(benchmark.with_suffix(".json").read_text())
+        if spec["graph_sha256"] != manifest["graph_sha256"] or digest(benchmark) != spec["splits"][benchmark.stem]["sha256"]:
+            raise ValueError("benchmark input differs from freeze")
     dest = a.output or ROOT / "output/adaptive-radius" / a.graph
+    if a.query_name != "test.tsv" and not a.output:
+        dest = dest / "benchmark"
     if a.fixed_k and not a.output:
         dest = dest / "fixed-k" / str(a.fixed_k)
     dest.mkdir(parents=True, exist_ok=True)
     binary = compile_tool("measure")
     subprocess.run(["/usr/bin/time", "-f", "%M", "-o", str(dest / "peak_kib.txt"),
-                    binary, str(a.nodes), edges, work, dest, *([str(a.fixed_k)] if a.fixed_k else [])], check=True)
+                    binary, str(a.nodes), edges, work, dest, str(a.fixed_k or -1), a.query_name], check=True)
     print(a.graph, f"k={a.fixed_k}" if a.fixed_k else "mixed k",
           read_rows(dest / "repeats.tsv")[0]["n"], "test queries passed")
 

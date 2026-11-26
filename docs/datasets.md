@@ -1,41 +1,56 @@
-##### 数据版本
+##### 数据集选择和结构
 
-十张图均已下载、按原方向整理，并重新读取文件核对哈希。各图合计 134,578,213 条边，原始压缩包共 537,784,454 字节，规范边表共 1,939,093,244 字节。所有方法读取同一份按源点、终点编号升序排列的有向边表。前两张图沿用[两张小图的清单](../dataset/manifest.json)，新增八张图的[分发地址](../dataset/catalogue.json)和[逐图校验记录](../dataset/frozen/)与原始数据分开保存
+15 张图（13 个公开真实网络、2 张控制图）共 135,112,376 条有向边。所有查询直接定义在冻结的有向边表。平均出度为 $m/n$，非自环密度为 $(m-m_{loop})/[n(n-1)]$，最大 SCC、度分布、互惠边及源汇点均已实测。[完整结构统计](../dataset/graph_stats.tsv)
 
-| 图 | 顶点 | 边 | 文件来源与版本 |
-| --- | ---: | ---: | --- |
-| Wiki-Vote | 7,115 | 103,689 | [SNAP 投票网络](https://snap.stanford.edu/data/wiki-Vote.html)，投票者指向候选人 |
-| CiteSeer-sub | 10,720 | 44,258 | [GRAIL 作者 sigmod09 归档](https://github.com/zakimjz/grail/tree/c13a7364fbc185841fc6277cd295acf33a7188f0/Downloads)的引文 DAG，成员为 citeseer_sub_10720.gra |
-| p2p-Gnutella31 | 62,586 | 147,892 | [SNAP Gnutella](https://snap.stanford.edu/data/p2p-Gnutella31.html)，2002 年 8 月 31 日有向快照 |
-| email-EuAll | 265,214 | 420,045 | [SNAP 邮件网络](https://snap.stanford.edu/data/email-EuAll.html)，发件人指向收件人，保留 1,089 条自环 |
-| web-Google | 875,713 | 5,105,039 | [SNAP Google 网页图](https://snap.stanford.edu/data/web-Google.html)，边为有向超链接 |
-| web-BerkStan | 685,230 | 7,600,595 | [SNAP BerkStan 网页图](https://snap.stanford.edu/data/web-BerkStan.html)，同规模的论文图不保证边表字节相同 |
-| wiki-Talk | 2,394,385 | 5,021,410 | [SNAP Wikipedia 讨论网络](https://snap.stanford.edu/data/wiki-Talk.html)，编辑者指向被编辑讨论页的用户。VCRea 的变换版本只有 2,281,879 点、2,311,570 边 |
-| cit-Patents | 3,774,768 | 16,518,948 | [SNAP 美国专利引用](https://snap.stanford.edu/data/cit-Patents.html)，引用方指向被引专利，文件含一条自环，边数较 K-Reach 2014 表中多一条；这两项是否对应同一条记录尚未核实 |
-| soc-Pokec | 1,632,803 | 30,622,564 | [SNAP Pokec](https://snap.stanford.edu/data/soc-Pokec.html)，只取有向关系边表 |
-| soc-LiveJournal1 | 4,847,571 | 68,993,773 | [SNAP LiveJournal](https://snap.stanford.edu/data/soc-LiveJournal1.html)，单向好友声明，保留文件中的 518,382 条自环 |
+| 图 | $n$ | $m$ | 平均出度 | 最大 SCC 规模或占比 | 来源与用途 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| ArXiv-sub | 6,000 | 66,707 | 11.12 | 1 个点 | 2012/2014 引文图 |
+| GO-sub | 6,793 | 13,361 | 1.97 | 1 个点 | 2012/2014 本体图 |
+| CiteSeer-sub | 10,720 | 44,258 | 4.13 | 1 个点 | 2012/2014 引文图 |
+| Wiki-Vote | 7,115 | 103,689 | 14.57 | 18.27% | 投票网络 |
+| p2p-Gnutella31 | 62,586 | 147,892 | 2.36 | 22.61% | 较低平均度 P2P |
+| email-EuAll | 265,214 | 420,045 | 1.58 | 12.90% | 通信网络，大外围 |
+| email-Eu-core | 1,005 | 25,571 | 25.44 | 79.90% | 通信核心，高平均度 |
+| web-Google | 875,713 | 5,105,039 | 5.83 | 49.65% | 网页、EVE 2023 |
+| web-BerkStan | 685,230 | 7,600,595 | 11.09 | 48.87% | VCRea/EVE 2023 |
+| wiki-Talk | 2,394,385 | 5,021,410 | 2.10 | 4.67% | 讨论、EVE 2023 |
+| cit-Patents | 3,774,768 | 16,518,948 | 4.38 | 1 个点 | 2014 大型引用图 |
+| soc-Pokec | 1,632,803 | 30,622,564 | 18.75 | 79.90% | 大型强连通社交核心 |
+| soc-LiveJournal1 | 4,847,571 | 68,993,773 | 14.23 | 78.98% | EVE 2023、规模压力 |
+| ER-2048-sparse | 2,048 | 10,412 | 5.08 | 98.63% | 有向随机图，密度 0.248% |
+| ER-2048-dense | 2,048 | 418,112 | 204.16 | 100% | 有向随机图，密度 9.973% |
 
-[O’Reach 实例表](https://oreach.taa.univie.ac.at/)注明小型稠密组来自 GRAIL，列出 citeseer_sub 的上述规模。该页的 tar.xz 下载在本轮返回 HTTP 404，因此实验固定上游作者明确命名的原图，公开包的 Git blob 为 `08aaf9b00a2bc7f52ee63988d02a381b0714b896`。对上游原图做拓扑排序覆盖全部 10,720 个顶点，再按逆拓扑序合并后继的可达集合，得到不同端点的可达有序点对 421,995 个，占全部 $n(n-1)$ 的 0.3672469934%，与 O’Reach 公布的 0.367247% 一致。尚未核实 O’Reach 的重新编号、查询文件或其边表与这份上游图的逐项一致性，项目自己生成 K-hop 查询。实验中的距离定义在这张分发 DAG 上
+规模覆盖 1,005 至 4,847,571 顶点，真实图包含 DAG、强连通核心和外围、低平均度及高平均度网络。真实图按全体有序点对比例仍属稀疏图。为隔离密度因素，新增两张相同顶点数、共享随机序列、各有向弧概率 0.0025 与 0.1 的 ER 图
 
-##### 准备与校验
+##### 论文关联及版本
 
-仓库根目录中运行以下命令。新增图的 Python 入口使用标准库，Linux 需要 g++、curl、tar 和 gzip
+2012/2014 的小规模实验均含 ArXiv、CiteSeer、GO，采用 GRAIL 作者分发图，点边规模一致。2014 的 patent 与当前 SNAP 原件相差一条边，实验保留 SNAP 原始自环。三张 GRAIL 图的距离定义在分发 DAG 上。[2012](https://vldb.org/pvldb/vol5/p1292_jamescheng_vldb2012.pdf) · [2014](https://www1.se.cuhk.edu.hk/~hcheng/paper/vldbj-cheng.pdf)
+
+VCRea 2023 使用 BerkStan 和变换后 WikiTalk，后者与原始 SNAP 版本规模不同。原文还使用 EX6、3dtube、bio 高平均度图，本次官方 Network Repository 下载超时或返回 403，SuiteSparse 的 3dtube 分发亦未取得。当前用 SNAP email-Eu-core 和两档 ER 图覆盖高平均度及密度差异。[VCRea 表 3](https://www.mdpi.com/2076-3417/13/6/3470)
+
+EVE 2023 表 2 使用 BerkStan、Google、WikiTalk、LiveJournal1，并在实验设置引用 K-Reach 2012/2014 和 ESTI。WKRI 表 6 亦列 Email-EuAll、Google、WikiTalk、LiveJournal 与 Patents，其中多项规模明显不同。[EVE §6.1](https://arxiv.org/html/2304.12656) · [WKRI §5.2](https://arxiv.org/html/2403.13181v2)
+
+真实来源为 [SNAP](https://snap.stanford.edu/data/) 与 [GRAIL 作者归档](https://github.com/zakimjz/grail/tree/c13a7364fbc185841fc6277cd295acf33a7188f0/Downloads)。具体来源、原包及规范图哈希见 [两图清单](../dataset/manifest.json)、[目录](../dataset/catalogue.json)、[逐图冻结](../dataset/frozen/)。O’Reach citeseer_sub 与 GRAIL 的点边规模、可达有序点对统计一致，字节身份未取得
+
+##### 数据准备
 
 ```sh
 python3 src/prepare.py
 python3 src/freeze.py
-python3 -m unittest discover -s tests
+python3 src/generate_synthetic.py ER-2048-sparse ER-2048-dense
+python3 src/graph_stats.py
+python3 src/prepare_benchmark.py wiki-Vote
+python3 tests/check_workloads.py
 ```
 
-可以在 `freeze.py` 后列出图名，例如 `python3 src/freeze.py CiteSeer-sub email-EuAll`。服务器不能访问发布站时，可先在联网机器按清单下载原压缩包，再以 URL 对应的文件名放到 `dataset/raw/`。脚本以 SHA-256 复核已冻结的原包，重新生成边表后还会核对其哈希与顶点映射
+原始压缩包位于本地 `dataset/raw/`，规范文件 `dataset/prepared/<图名>.edges` 与 ID 映射保留原方向、自环并合并重复有向边。原包、边表、编号映射均有 SHA-256，合成图按 [固定种子及概率](../dataset/synthetic.json) 校验。原件全部在 Git 忽略目录
 
-SNAP 的文本文件以边端点给出顶点，将出现的原始整数编号升序重编号到 $0,\ldots,|V|-1$。GRAIL 用文件头给出全体顶点数，每个顶点有一行出邻居，包括空邻接行。顶点对按原方向去重，保留自环，未将强连通分量缩成顶点。输出文件 `dataset/prepared/<图名>.nodes.tsv` 的两列是新编号与原编号；`.edges` 无表头，每行为源点和目的点，两者用制表符分隔
+##### 正式查询
 
-每个新增图的 JSON 实测记录包括原始行数、规范边数、自环与重边数、孤立点数、原件及边表字节数，以及原件、边表和编号映射的 SHA-256。程序完成全部计数和哈希校验后才发布边表，生成期间的中间文件在同文件系统的临时目录
+`dataset/workloads/<图名>/` 中保留训练、验证、小型诊断及正式 `benchmark.tsv`。正式集共 310,461 条不同请求，每图 15,360 至 23,551 条，128 个源点，固定种子 26112026
 
+- `benchmark-uniform.tsv` 使用 64 个均匀抽取的源点，对 $k=2,4,6$ 分别抽 64 个无重复目标，保留真实随机点对的类别偏斜
+- `benchmark-stratified.tsv` 使用另一组 64 个有出边的源点，对 $d<k$、$d=k$、$d=k+1$、$k+1<d<\infty$、不可达分别抽最多 12 个目标，类别为空时保留缺失
+- 合并后固定顺序洗牌。每个 $d$ 由完整单源 BFS 得到，$-1$ 代表不可达。正式源点与训练、验证、诊断及此前复核全部隔离，另用反向 BFS 对每图三类最多各 8 条做独立距离核验，共 344 条通过
 
-##### 查询和真值
-
-`dataset/workloads/<图名>/test.tsv` 是各基线共用的冻结输入，共 2,849 条查询。每行依次给出源点、终点、阈值 $k$ 和不设深度限制的原图最短距离 $d$，不可达记为 $-1$。判定条件为 $0\le d\le k$。$k$ 固定档分别用 $2,4,6$，通用方法用同一索引回答混合阈值。每个图目录的 `manifest.json` 记录查询、边表哈希和样本计数
-
-训练、验证和测试按源点分开，`holdouts/` 和 `gate-holdouts/` 保留供以后研究使用的独立查询。`prior-sources.txt` 只记录生成冻结查询时排除的源点编号
+每图 `benchmark.json` 固定图及查询哈希、每组源点数与分类统计。所有正式对照读取相同的合并文件，固定阈值各建一套索引，通用方法建一次服务全批；选参只使用相互独立的训练与验证集
