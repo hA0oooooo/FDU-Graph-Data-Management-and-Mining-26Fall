@@ -132,8 +132,8 @@ struct KReach {
 struct Query { int s, t; bool truth; };
 
 int main(int argc, char** argv) {
-    if (argc != 5) {
-        std::cerr << "usage: kreach N EDGES WORKLOAD K\n";
+    if (argc != 5 && argc != 6) {
+        std::cerr << "usage: kreach N EDGES WORKLOAD K [answer-file]\n";
         return 2;
     }
     const int n = std::stoi(argv[1]), k = std::stoi(argv[4]);
@@ -175,6 +175,11 @@ int main(int argc, char** argv) {
         for (size_t i = 0; i < queries.size(); ++i)
             mismatches += answers[i] != queries[i].truth;
         errors = std::max(errors, mismatches);
+    }
+    if (argc==6) {
+        std::ofstream file(argv[5]);
+        file<<"answer\n";
+        for(uint8_t answer:answers) file<<int(answer)<<'\n';
     }
     const auto first_ns = batch_ns.front();
     std::sort(batch_ns.begin(), batch_ns.end());

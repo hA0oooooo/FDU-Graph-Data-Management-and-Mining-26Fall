@@ -18,8 +18,8 @@ int main() {
             }
             BitScratch bits(out.size());
             LabelCounts parallel,parallel_short;
-            for(int first=0;first<int(order.size());first+=64) {
-                int count=std::min(64,int(order.size())-first);
+            for(int first=0;first<int(order.size());first+=128) {
+                int count=std::min(128,int(order.size())-first);
                 parallel+=group_counts(out,in,ranks,order,first,count,out.size(),pll,bits);
                 parallel_short+=group_counts(out,in,ranks,order,first,count,2,pll,bits);
             }

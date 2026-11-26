@@ -1,11 +1,12 @@
 #include "graph.hpp"
 #include <chrono>
 #include <iostream>
+#include <filesystem>
 
 int main(int argc, char** argv) {
     using namespace khop;
     using Clock = std::chrono::steady_clock;
-    if (argc != 4) throw std::runtime_error("search N graph.edges test.tsv");
+    if (argc != 4 && argc != 5) throw std::runtime_error("search N graph.edges test.tsv [answer-dir]");
     const auto graph = Graph::load(std::stoul(argv[1]), argv[2]);
     std::ifstream file(argv[3]);
     std::string header;
@@ -31,6 +32,13 @@ int main(int argc, char** argv) {
         for (size_t i = 0; i < queries.size(); ++i) {
             const auto& q = queries[i];
             errors += bool(answers[i]) != (q.d >= 0 && q.d <= q.k);
+        }
+        if (argc == 5) {
+            const std::filesystem::path folder=argv[4];
+            std::filesystem::create_directories(folder);
+            std::ofstream output(folder/(std::string(bidirectional?"bibfs":"bfs")+".tsv"));
+            output<<"answer\n";
+            for(char value:answers) output<<int(value)<<'\n';
         }
         std::cout << (bidirectional ? "bibfs" : "bfs") << '\t' << queries.size() << '\t'
                   << errors << '\t' << scans << '\t' << ms << '\n';

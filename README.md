@@ -14,7 +14,8 @@
 
 ```sh
 python3 src/run_baselines.py wiki-Vote
-python3 src/run_baselines.py all --jobs 4
+python3 src/run_baselines.py all --jobs 4 --cpu-count 72
+python3 src/run_baselines.py wiki-Vote --fixed-k 4
 ```
 
-每次运行的日志、测量回执和 `coverage.tsv` 保存在本机的 `output/baselines/<运行目录>/`。[实验说明与复查](docs/baselines.md) · [数据版本](docs/datasets.md) · [方法设计](docs/adaptive-radius.md)
+每次运行在本机 `output/baselines/<运行目录>/methods/<方法>/<图>/` 下保留构建、查询及逐条答案，运行根目录有 `performance.tsv`。默认单线程串行、每项 48 GiB 地址空间预算；完整配置与帕累托图入口见文档。[实验说明与复查](docs/baselines.md) · [数据版本](docs/datasets.md) · [方法设计](docs/adaptive-radius.md)

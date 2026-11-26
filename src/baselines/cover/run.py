@@ -39,7 +39,7 @@ def write_requests(path, queries):
     path.write_text("".join(f"{s} {t} {k}\n" for s, t, k, _ in queries))
 
 
-def measure(binary, name, method, n, edges, requests, queries, timeout, cap, progress=None):
+def measure(binary, name, method, n, edges, requests, queries, timeout, cap, progress=None, answer_path=None):
     start = perf_counter()
     base = dict(graph=name, method=method, queries=len(queries))
     try:
@@ -62,6 +62,8 @@ def measure(binary, name, method, n, edges, requests, queries, timeout, cap, pro
     bits = result.pop("predictions")
     if len(bits) != len(queries) or set(bits) - {"0", "1"}:
         raise ValueError("invalid per-query response")
+    if answer_path is not None:
+        answer_path.write_text("answer\n"+"\n".join(bits)+"\n")
     classes = {c: {"n": 0, "mismatches": 0} for c in ("within_k", "beyond_k", "unreachable")}
     failures = []
     for bit, (s, t, k, d) in zip(bits, queries):

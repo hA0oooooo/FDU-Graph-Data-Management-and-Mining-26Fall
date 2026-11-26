@@ -3,11 +3,17 @@ import argparse
 import csv
 import hashlib
 import json
+import os
+import socket
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+from workload import QUERY_FILES, fixed_queries, workload_spec
+
 HERE = Path(__file__).resolve().parent
 BUILD = ROOT / "cache/radius"
 WORKLOADS = ROOT / "dataset/workloads"
@@ -71,7 +77,9 @@ def main():
     ap.add_argument("--nodes", required=True, type=int)
     ap.add_argument("--fixed-k", choices=[2,4,6], type=int, help="select, build and evaluate using just this threshold")
     ap.add_argument("--prepare-only", action="store_true")
-    ap.add_argument("--query-name", choices=["test.tsv","benchmark.tsv"], default="test.tsv")
+    ap.add_argument("--query-name", choices=QUERY_FILES, default="test.tsv")
+    ap.add_argument("--memory-gib", type=int, default=48)
+    ap.add_argument("--cpu-count", type=int, default=1)
     ap.add_argument("--output", type=Path, help="measurement directory; defaults to output/adaptive-radius/<graph>")
     a = ap.parse_args()
     edges = ROOT / "dataset/prepared" / (a.graph + ".edges")
@@ -88,17 +96,36 @@ def main():
             raise ValueError("query file changed: " + name)
     if a.query_name != "test.tsv":
         benchmark=work/a.query_name
-        spec=json.loads(benchmark.with_suffix(".json").read_text())
-        if spec["graph_sha256"] != manifest["graph_sha256"] or digest(benchmark) != spec["splits"][benchmark.stem]["sha256"]:
+        benchmark_manifest, spec=workload_spec(work,a.query_name)
+        if benchmark_manifest["graph_sha256"] != manifest["graph_sha256"] or digest(benchmark) != spec["sha256"]:
             raise ValueError("benchmark input differs from freeze")
     dest = a.output or ROOT / "output/adaptive-radius" / a.graph
     if a.query_name != "test.tsv" and not a.output:
-        dest = dest / "benchmark"
+        dest = dest / Path(a.query_name).stem
     if a.fixed_k and not a.output:
         dest = dest / "fixed-k" / str(a.fixed_k)
     dest.mkdir(parents=True, exist_ok=True)
+    available=sorted(os.sched_getaffinity(0))
+    if not 1<=a.cpu_count<=len(available) or a.memory_gib<1:
+        ap.error("choose positive memory and an available CPU count")
+    cpus=available[:a.cpu_count]
+    os.sched_setaffinity(0,cpus)
+    query=work/a.query_name
+    query_hash=digest(query)
+    if a.fixed_k is not None:
+        selected,count=fixed_queries(query,a.fixed_k)
+        query_hash=hashlib.sha256(selected.encode()).hexdigest()
+    else:
+        count=len(read_rows(query))
+    metadata=dict(graph=a.graph, graph_sha256=manifest["graph_sha256"], query_sha256=query_hash,
+                  query_name=a.query_name,fixed_k=a.fixed_k,queries=count,memory_gib=a.memory_gib,
+                  comparison_budget_gib=a.memory_gib,execution_memory_gib=a.memory_gib,
+                  cpu_affinity=cpus,cpu_count=len(cpus),solver_threads=1,concurrent_configurations=1,
+                  host=socket.gethostname())
+    (dest/"run.json").write_text(json.dumps(metadata,indent=2)+"\n")
     binary = compile_tool("measure")
-    subprocess.run(["/usr/bin/time", "-f", "%M", "-o", str(dest / "peak_kib.txt"),
+    memory=a.memory_gib*2**30
+    subprocess.run(["prlimit",f"--as={memory}:{memory}","--","/usr/bin/time", "-f", "%M", "-o", str(dest / "peak_kib.txt"),
                     binary, str(a.nodes), edges, work, dest, str(a.fixed_k or -1), a.query_name], check=True)
     print(a.graph, f"k={a.fixed_k}" if a.fixed_k else "mixed k",
           read_rows(dest / "repeats.tsv")[0]["n"], "test queries passed")

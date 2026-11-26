@@ -63,10 +63,10 @@ LabelCounts root_counts(const Adj& out,const Adj& in,const std::vector<int>& ran
     return counts;
 }
 
-// Propagate up to 64 independent roots in one traversal. A bit is dirty if
+// Propagate up to 128 independent roots in one traversal. A bit is dirty if
 // at least one shortest path from that root contains an earlier-ranked hub.
 struct BitScratch {
-    std::vector<uint64_t> seen,front,dirty,next,next_dirty;
+    std::vector<__uint128_t> seen,front,dirty,next,next_dirty;
     std::vector<int> active, following;
     explicit BitScratch(size_t n):seen(n),front(n),dirty(n),next(n),next_dirty(n) {
         active.reserve(n);following.reserve(n);
@@ -75,20 +75,20 @@ struct BitScratch {
     LabelCounts count(const Adj& adj,const Adj& opposite,const std::vector<int>& ranks,
                       const std::vector<int>& order,int first,int count,int radius,bool pll) {
         std::fill(seen.begin(),seen.end(),0);
-        const uint64_t mask=count==64?~uint64_t{0}:((uint64_t{1}<<count)-1);
-        uint64_t alive=mask;
+        const __uint128_t mask=count==128?~__uint128_t{0}:((__uint128_t{1}<<count)-1);
+        __uint128_t alive=mask;
         active.clear();
         for(int i=0;i<count;++i) {
-            int u=order[first+i]; uint64_t bit=uint64_t{1}<<i;
+            int u=order[first+i]; __uint128_t bit=__uint128_t{1}<<i;
             front[u]=seen[u]=bit; active.push_back(u);
         }
         LabelCounts total;
         for(int layer=0;!active.empty() && layer<=radius;++layer) {
-            uint64_t has_clean=0;
+            __uint128_t has_clean=0;
             for(int u:active) {
-                uint64_t good=front[u]&alive&~dirty[u];
+                __uint128_t good=front[u]&alive&~dirty[u];
                 has_clean|=good;
-                unsigned number=__builtin_popcountll(good);
+                unsigned number=__builtin_popcountll(static_cast<uint64_t>(good)) + __builtin_popcountll(static_cast<uint64_t>(good>>64));
                 bool receiver=pll || ranks[u]<static_cast<int>(ranks.size());
                 if(receiver)total.basic+=number;
                 if(receiver || opposite[u].size()>1)total.plus+=number;
@@ -100,11 +100,11 @@ struct BitScratch {
             }
             following.clear();
             for(int u:active) {
-                uint64_t bits=front[u]&alive,bad=dirty[u]&bits;
+                __uint128_t bits=front[u]&alive,bad=dirty[u]&bits;
                 front[u]=dirty[u]=0;
                 if(!bits)continue;
                 for(int v:adj[u]) {
-                    uint64_t fresh=bits&~seen[v];
+                    __uint128_t fresh=bits&~seen[v];
                     if(!fresh)continue;
                     if(!next[v])following.push_back(v);
                     next[v]|=fresh;
@@ -113,7 +113,7 @@ struct BitScratch {
             }
             for(int v:following) {
                 int offset=ranks[v]-first;
-                uint64_t earlier=offset<0?mask:offset>=count-1?0:mask&(~uint64_t{0}<<(offset+1));
+                __uint128_t earlier=offset<0?mask:offset>=count-1?0:mask&(~__uint128_t{0}<<(offset+1));
                 front[v]=next[v];
                 dirty[v]=(next_dirty[v]|(next[v]&earlier))&next[v];
                 seen[v]|=next[v];
@@ -153,7 +153,7 @@ int main(int argc,char** argv) {
     if(start<0 || start>=end || radius<0 || threads<1)throw std::invalid_argument("empty or invalid range");
     omp_set_num_threads(threads);
     std::cerr<<"roots="<<order.size()<<" start="<<start<<" end="<<end<<" radius="<<radius<<"\n";
-    const int chunk=64*threads;
+    const int chunk=128*threads;
     for(int first=start;first<end;first+=chunk) {
         auto began=Clock::now();
         uint64_t basic=0,plus=0;
@@ -162,8 +162,8 @@ int main(int argc,char** argv) {
         {
             BitScratch scratch(n);
             #pragma omp for schedule(dynamic,1)
-            for(int r=first;r<stop;r+=64) {
-                auto counts=group_counts(out,in,ranks,order,r,std::min(64,stop-r),radius,pll,scratch);
+            for(int r=first;r<stop;r+=128) {
+                auto counts=group_counts(out,in,ranks,order,r,std::min(128,stop-r),radius,pll,scratch);
                 basic+=counts.basic; plus+=counts.plus;
             }
         }

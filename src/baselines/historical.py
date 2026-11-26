@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import resource
 import subprocess
+import sys
 import tempfile
 from time import monotonic
 
@@ -14,6 +15,9 @@ from esti.build import BUILD as ESTI_CACHE, build
 from esti.build_capacity import expanded
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+from workload import workload_spec
+
 BUILD = ROOT / "cache/historical"
 FIELDS = ("k roots entries build_bfs_edge_scans build_ns process_peak_kib queries positives "
           "mismatches first_batch_ns median_batch_ns both_core source_core target_core neither_core index_bytes").split()
@@ -55,7 +59,7 @@ def compiled(source, name):
     return dest
 
 
-def esti(n, m, edges, rows, work, adapted=False, memory_gib=48):
+def esti(n, m, edges, rows, work, adapted=False, memory_gib=48, answer_path=None):
     if n >= 30000000 or (not adapted and m+n > 60000000):
         return dict(status="exceeds_upstream_capacity", vertex_slots=30000000, edge_slots=60000000)
     writer = compiled(ROOT / "src/baselines/esti/convert.cpp", "esti_format")
@@ -83,13 +87,18 @@ def esti(n, m, edges, rows, work, adapted=False, memory_gib=48):
                batch_ms=float(re.search(r"query time: ([\d.]+) ms", p.stdout)[1]),
                index_bytes=int(re.search(r"index size: (\d+) bytes", p.stdout)[1]),
                process_peak_kib=int((work / "peak-kib.txt").read_text().strip()))
+    if answer_path is not None:
+        answer_path.write_text("answer\n"+"\n".join(answers)+"\n")
     if rec["mismatches"]:
         rec["status"] = "mismatch"
     return rec
 
 
-def kreach(binary, n, edges, queries, rows, k, work, seconds, memory_gib, progress):
-    p,record=run_limited([binary,str(n),edges,queries,str(k)],work,seconds,memory_gib,progress)
+def kreach(binary, n, edges, queries, rows, k, work, seconds, memory_gib, progress, answer_path=None):
+    command=[binary,str(n),edges,queries,str(k)]
+    if answer_path is not None:
+        command.append(answer_path)
+    p,record=run_limited(command,work,seconds,memory_gib,progress)
     record["k"]=k
     if p.returncode==0:
         record.update(zip(FIELDS,map(int,p.stdout.split()),strict=True))
@@ -110,21 +119,27 @@ def main():
     ap.add_argument("--k", nargs="+", type=int, help="specific fixed thresholds to build")
     ap.add_argument("--query-name", default="test.tsv")
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--answers-dir", type=Path)
     a=ap.parse_args()
     BUILD.mkdir(parents=True,exist_ok=True)
     edges=ROOT/"dataset/prepared"/(a.graph+".edges")
     queries=ROOT/"dataset/workloads"/a.graph/a.query_name
     with queries.open() as f:
         rows=[tuple(int(q[key]) for key in ("s","t","k","d")) for q in csv.DictReader(f,delimiter="\t")]
-    manifest=json.loads((queries.parent/"manifest.json" if a.query_name=="test.tsv" else queries.with_suffix(".json")).read_text())
-    if hashlib.sha256(queries.read_bytes()).hexdigest()!=manifest["splits"][queries.stem]["sha256"]:
+    manifest, query_spec=workload_spec(queries.parent,a.query_name)
+    if hashlib.sha256(queries.read_bytes()).hexdigest()!=query_spec["sha256"]:
         raise ValueError("workload hash mismatch")
     with edges.open("rb") as f:
         if hashlib.file_digest(f,"sha256").hexdigest()!=manifest["graph_sha256"]:
             raise ValueError("edge hash mismatch")
     receipt=dict(graph=a.graph, graph_sha256=manifest["graph_sha256"],
-                 test_sha256=manifest["splits"][queries.stem]["sha256"], kreach=[])
+                 test_sha256=query_spec["sha256"], kreach=[])
     a.output.parent.mkdir(parents=True,exist_ok=True)
+    if a.answers_dir:
+        a.answers_dir=a.answers_dir.resolve()
+        a.answers_dir.mkdir(parents=True,exist_ok=True)
+    def answer(name):
+        return a.answers_dir/(name+".tsv") if a.answers_dir else None
     if a.resume and a.output.exists():
         prior=json.loads(a.output.read_text())
         if any(prior.get(k)!=v for k,v in receipt.items() if k!="kreach"):
@@ -138,15 +153,15 @@ def main():
         work=Path(folder)
         binary = compiled(ROOT / "src/baselines/kreach/kreach.cpp", "kreach")
         if "esti" in a.methods and "esti" not in receipt:
-            receipt["esti"] = esti(a.nodes, a.edges, edges, rows, work, memory_gib=a.memory_gib)
+            receipt["esti"] = esti(a.nodes, a.edges, edges, rows, work, memory_gib=a.memory_gib, answer_path=answer("esti"))
             if receipt["esti"]["status"] == "exceeds_upstream_capacity" and a.nodes < 30000000:
-                receipt["esti_expanded"] = esti(a.nodes, a.edges, edges, rows, work, adapted=True, memory_gib=a.memory_gib)
+                receipt["esti_expanded"] = esti(a.nodes, a.edges, edges, rows, work, adapted=True, memory_gib=a.memory_gib, answer_path=answer("esti_expanded"))
             save()
         if "kreach" in a.methods:
             for k in (a.k or sorted({row[2] for row in rows})):
                 if any(row["k"]==k for row in receipt["kreach"]):
                     continue
-                receipt["kreach"].append(kreach(binary, a.nodes, edges, queries, rows, k, work, a.kreach_seconds, a.memory_gib, a.output.with_suffix(f".k{k}.log").resolve()))
+                receipt["kreach"].append(kreach(binary, a.nodes, edges, queries, rows, k, work, a.kreach_seconds, a.memory_gib, a.output.with_suffix(f".k{k}.log").resolve(), answer(f"kreach-{k}")))
                 save()
 
 

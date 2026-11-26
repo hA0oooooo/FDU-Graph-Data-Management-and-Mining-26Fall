@@ -26,11 +26,14 @@ def main():
     parser.add_argument("--nodes", type=int, required=True, help="include isolated vertices")
     parser.add_argument("--queries", type=Path, required=True, help="TSV with s, t, k, d")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--answers-dir", type=Path)
     parser.add_argument("--b", type=int, default=1000)
     parser.add_argument("--d2-cap", type=int, default=32)
     parser.add_argument("--timeout", type=int, help="optional wall seconds per configuration")
     parser.add_argument("--memory-gib", type=int, default=48)
     args = parser.parse_args()
+    if args.answers_dir:
+        args.answers_dir.mkdir(parents=True,exist_ok=True)
     with args.queries.open() as f:
         queries = [(int(r["k"]), int(r["d"])) for r in csv.DictReader(f, delimiter="\t")]
     if not queries:
@@ -66,6 +69,9 @@ def main():
                     group = "unreachable" if d<0 else "beyond_k" if d>k else "within_k"
                     counts[group]+=1
                     mistakes[group]+=(answer=="1") != (0<=d<=k)
+                if args.answers_dir:
+                    name="gen-k-reach" if mode=="general" else f"scalable-{mode}"
+                    (args.answers_dir/(name+".tsv")).write_text("answer\n"+"\n".join(outputs)+"\n")
                 errors=sum(mistakes.values())
                 row.update(mode=mode, status="mismatch" if errors else "verified",
                            errors=errors, by_class=counts, errors_by_class=mistakes,

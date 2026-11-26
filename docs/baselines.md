@@ -33,16 +33,17 @@ BFSI-B 与 MultiIndex 面向 DAG，用作 DAG 专项比较；普通可达性的 
 
 ```sh
 python3 src/run_baselines.py wiki-Vote
-python3 src/run_baselines.py all --jobs 4
+python3 src/run_baselines.py all --jobs 4 --cpu-count 72
+python3 src/run_baselines.py wiki-Vote --fixed-k 4
 python3 src/report_baselines.py output/baselines/20261126-full-ten output/baselines/20261126-extensions --output output/baselines/20261126-complete/performance.tsv
 python3 src/run_baselines.py --review output/baselines/20261126-extensions
 ```
 
-默认正式 `benchmark.tsv`，`--query-name test.tsv` 选择小型诊断输入。求解器单线程，默认没有墙钟上限，地址空间默认每项 48 GiB、完整 K-Reach 96 GiB。可按共享主机实际余量调整 `--memory-gib` 和 `--kreach-memory-gib`。重复实验指定独立 `--output`，中断后相同程序和配置可用 `--resume` 从已有回执恢复
+默认正式 `benchmark.tsv`，`--query-name test.tsv` 选择小型诊断输入。均匀点对和分层难度分别使用 `--query-name benchmark-uniform.tsv` 与 `--query-name benchmark-stratified.tsv`，均能直接运行全套基线或半径方案。求解器单线程，默认没有墙钟上限，正式入口统一每项 48 GiB 地址空间上限，按图规模可通过 `--memory-gib 96` 或更高的预算配置所有方法。此前诊断运行给完整 K-Reach 96 GiB、其余方法 48 GiB，已完成配置的最大实测进程峰值 RSS 约 30.95 GiB，K-Reach 最大约 18.17 GiB，保留这些结果和实际执行上限。完整 K-Reach 的四个容量瓶颈均有超过 96 GiB 的严格下界证据。未来新实验保持同一图预算一致，`--kreach-memory-gib` 仅允许显式诊断。重复实验指定独立 `--output`，中断后相同程序和配置可用 `--resume` 从已有回执恢复
 
-`run.json` 保存源码指纹、编译器、图列表、配置和运行机器。各图与方法的 JSON/TSV 和日志全部在本地 output，`performance.tsv` 由回执生成并校验查询和图 SHA-256，记录完成状态、查询数及错答、构建秒数、首次批查询秒数、均值、索引有效负载和进程峰值 KiB。固定阈值每档分母仅包含该阈值请求；混合阈值独立构建一次。有效负载不含容器开销，峰值 RSS 含图和构建空间。未采集字段留空，失败配置的计时不参与比较
+`run.json` 保存源码指纹、编译器、图列表、配置和运行机器。各图与方法的 JSON/TSV 和日志全部在本地 output，`performance.tsv` 由回执生成并校验查询和图 SHA-256，记录完成状态、查询数及错答、构建秒数、首次批查询秒数、均值、索引有效负载和进程峰值 KiB及相对回执路径。固定阈值每档分母仅包含该阈值请求；混合阈值独立构建一次。有效负载不含容器开销，峰值 RSS 含图和构建空间。未采集字段留空，失败配置的计时不参与比较
 
-并行构建用于完整正确性验证和规模判断。精细论文延迟比较使用同一主机、绑定相同 CPU、串行、固定请求序列，并明确缓存条件和重复次数。当前整批均值无法推导 P95，需另行采集逐条延迟。自适应方案使用同一 `benchmark.tsv` 作为最终测试，与独立训练和验证分离，构建计入选根、探测、调参和建表全部环节
+baojian（xsuper）有 48 个物理核、96 个逻辑 CPU、503 GiB RAM。默认串行且绑定同一个可用逻辑 CPU（`--jobs 1 --cpu-count 1`）；并行验收可开放 72 个逻辑 CPU 并运行多个独立配置，每个求解器仍使用一个线程，运行元数据保存实际 CPU 亲和性。精细论文延迟比较使用串行、绑定相同 CPU、固定请求序列，并明确缓存条件和重复次数。当前整批均值无法推导 P95，需另行采集逐条延迟。自适应方案使用同一 `benchmark.tsv` 作为最终测试，与独立训练和验证分离，构建计入选根、探测、调参和建表全部环节
 
 ##### 大图完整索引的容量
 
@@ -74,8 +75,40 @@ python3 src/run_baselines.py --review output/baselines/20261126-extensions
 | K-Reach | 41 / 45 |
 | VCRea、VCRea+、Directed PLL | 各 13 / 15 |
 
-截至本次核验，共通过 185 项、2,622,161 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建仍在运行，结果以本机合并回执为准
+截至本次核验，共通过 185 项、2,622,161 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建曾因资源方案调整暂停，原回执保留；按统一 48 GiB 上限续做严格容量核验并补跑必要任务，最新状态以本机合并回执为准
 
 以 web-BerkStan 的 22,850 条正式查询为例，首次批查询耗时约为双向 BFS 0.070 s、gen-k-reach 0.258 s、VCRea+ 0.015 s。后两者构建分别约 10.3 s 与 61.5 s。Pokec 和 LiveJournal 的普通限深 BFS 批查询分别约 964 s 和 1,860 s，而双向 BFS 均约 0.56 s。两图的 gen-k-reach 构建分别约 459 s 与 902 s，批查询约 5.53 s 与 5.40 s。表明双向 BFS 是本查询分布下需要认真对比的在线基线，不能仅凭建表或命中标签推定最终收益
 
-ESTI 的补测回执置于各运行目录的 esti-profile/，沿用原图、查询和作者程序，采集作者 index size 与 GNU time 峰值 RSS；返还原始首次实验回执与独立补测结果。其他指标口径与首次运行保持一致
+ESTI 的补测回执置于各运行目录的 esti-profile/，沿用原图、查询和作者程序，采集作者 index size 与 GNU time 峰值 RSS，保留原始首次实验回执与独立补测结果。其他指标口径与首次运行保持一致
+
+##### 分方法存储与帕累托对比
+
+新运行的目录以方法和图划分，固定阈值方法再按 k 划分，例如
+
+```text
+output/baselines/<run>/
+  run.json
+  performance.tsv
+  methods/
+    kreach/wiki-Vote/k4/build.json
+    kreach/wiki-Vote/k4/query.json
+    kreach/wiki-Vote/k4/answers.tsv
+    gen-k-reach/wiki-Vote/build.json
+    gen-k-reach/wiki-Vote/query.json
+    vcrea/wiki-Vote/build.json
+    vcrea/wiki-Vote/query.json
+```
+
+build.json 保存构建状态、完整索引构建时间、有效负载、进程峰值及资源预算，query.json 保存批次时间、平均延迟、查询数和错答数。新运行保留按冻结查询顺序的逐条布尔答案，固定阈值仅保留对应阈值子序列。索引在原生进程中构建并查询，构建报告记录其大小；当前算法没有索引持久化协议。已有正式回执也按相同结构导出，过去未保留逐条答案流的结果仍有逐条正确性统计与原始回执
+
+```sh
+python3 src/plot_pareto.py output/baselines/<run>/performance.tsv --table-only
+# 使用安装了 matplotlib 的 Python 生成每张图的 PDF 和 PNG
+python3 src/plot_pareto.py output/baselines/<run>/performance.tsv --strict
+```
+
+横轴为索引构建总秒数，包含选点、选参及索引建立；纵轴为冻结查询的平均延迟（微秒）。零索引方法的横轴取 0，使用对称对数轴显示。对每张原图和同一查询集，只将完成且零错答的配置纳入比较。某方法在两个指标上均不差于另一方法且至少一项更优时，后者被支配，蓝色点组成非支配前沿
+
+固定 k 比较使用 `--fixed-k 2/4/6`，所有算法收到同一阈值的冻结子查询。混合 k 比较中，固定阈值方法各档索引构建时间和对应查询时间相加，通用阈值方法构建一次；固定索引的有效负载相加，单进程峰值取最大值，后者不能代表多档索引同时常驻的峰值。若负载和已经超过统一预算，则混合配置不参与前沿。构建失败、容量不可行及待完成配置保留在 pareto.tsv，图中只绘制具有实际性能的点
+
+候选方法输出相同字段的 performance.tsv 后可将两份表同时传给绘图入口，核对图和查询哈希，`--strict` 再检查执行资源一致。现有 15 图的初始前沿位于 output/baselines/20261126-complete/pareto/，输入为已验收的同图同查询回执。这批数据用于方法探索和规模判断；候选方法确定后，将双方在同一资源配置和固定 CPU 条件下重测关键图的延迟
