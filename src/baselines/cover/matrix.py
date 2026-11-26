@@ -14,7 +14,9 @@ def main():
     ap.add_argument("graphs", nargs="*", help="defaults to all frozen workloads")
     ap.add_argument("--output", type=Path, required=True, help="directory of per-method receipts")
     ap.add_argument("--timeout", type=int, help="uniform per-method limit in seconds")
-    ap.add_argument("--memory-mib", type=int, default=2048)
+    ap.add_argument("--methods", nargs="+", choices=METHODS[:3], default=METHODS[:3])
+    ap.add_argument("--query-name", default="test.tsv", help="file in each frozen workload directory")
+    ap.add_argument("--memory-mib", type=int, default=49152)
     args = ap.parse_args()
     if args.timeout is not None and args.timeout <= 0 or args.memory_mib <= 0:
         ap.error("resource limits must be positive")
@@ -31,16 +33,17 @@ def main():
         for graph in graphs:
             meta = json.loads((workloads/graph/"manifest.json").read_text())
             n = meta["nodes"]
-            # Pressure datasets have separate, shorter qualification runs.
-            timeout = args.timeout or (30 if n >= 1_000_000 else 120)
+            timeout = args.timeout
             edges = ROOT/"dataset/prepared"/f"{graph}.edges"
-            queries = workloads/graph/"test.tsv"
+            queries = workloads/graph/args.query_name
+            if args.query_name != "test.tsv":
+                meta = json.loads(queries.with_suffix(".json").read_text())
             inputs = dict(graph=graph,nodes=n,source_sha256=src_sha,flags=flags,
                           compiler=compiler,child_address_cap_bytes=cap,wall_timeout_s=timeout,
                           degree_threshold=1,edges_sha256=meta["graph_sha256"],
-                          queries_file=queries.name,queries_sha256=meta["splits"]["test"]["sha256"])
+                          queries_file=queries.name,queries_sha256=meta["splits"][queries.stem]["sha256"])
             jobs = []
-            for method in METHODS[:3]:
+            for method in args.methods:
                 path = args.output/graph/f"{method}.json"
                 if path.exists():
                     prior = json.loads(path.read_text())
@@ -56,12 +59,13 @@ def main():
                 subprocess.run(["g++",*flags,src,"-o",binary],check=True)
             with queries.open() as f:
                 rows = [tuple(map(int,(r["s"],r["t"],r["k"],r["d"]))) for r in csv.DictReader(f,delimiter="\t")]
-            if not rows or len(rows) != meta["splits"]["test"]["queries"]:
+            if not rows or len(rows) != meta["splits"][queries.stem]["queries"]:
                 raise ValueError(f"{graph}: invalid workload size")
             qp = work / "requests"
             write_requests(qp,rows)
             for method,path in jobs:
-                result = measure(binary,graph,method,n,edges,qp,rows,timeout,cap)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                result = measure(binary,graph,method,n,edges,qp,rows,timeout,cap,path.with_suffix(".log"))
                 save(path,dict(inputs,results=[result]))
                 print(graph,method,result["status"],round(result["elapsed_s"],2),flush=True)
                 if result["status"] == "mismatch":

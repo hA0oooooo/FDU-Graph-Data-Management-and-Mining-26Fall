@@ -1,0 +1,45 @@
+{
+  "nodes": 10720,
+  "graph_sha256": "10cf264e448716da217793db53562cb4546109c1421e135ef7d36a8d9c6f2d08",
+  "seed": 26112026,
+  "splits": {
+    "benchmark": {
+      "sha256": "e05eabf80d185ef96fe9eeea469ef10333a62a52bafb393ee7db65074c0d1e3b",
+      "queries": 18157
+    }
+  },
+  "groups": {
+    "uniform": {
+      "queries": 12288,
+      "sources": 64,
+      "sha256": "017d34086cffc9ef154522304f24237ec5db64471d5041982cdf25e855066022",
+      "classes": {
+        "2:beyond": 4,
+        "2:unreachable": 4087,
+        "2:within": 5,
+        "4:beyond": 6,
+        "4:unreachable": 4086,
+        "4:within": 4,
+        "6:beyond": 2,
+        "6:unreachable": 4088,
+        "6:within": 6
+      }
+    },
+    "stratified": {
+      "queries": 5869,
+      "sources": 64,
+      "sha256": "be697fd17c3cac4a7d49d4587efd97689e9d02cb1fa0bc6c60c8cf2acdb5be0d",
+      "classes": {
+        "2:beyond": 675,
+        "2:unreachable": 768,
+        "2:within": 782,
+        "4:beyond": 359,
+        "4:unreachable": 768,
+        "4:within": 893,
+        "6:beyond": 112,
+        "6:unreachable": 768,
+        "6:within": 744
+      }
+    }
+  }
+}

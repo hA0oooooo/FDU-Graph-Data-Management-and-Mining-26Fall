@@ -12,16 +12,51 @@ using Adj = std::vector<std::vector<int>>;
 using Clock = std::chrono::steady_clock;
 using Nanoseconds = std::chrono::nanoseconds;
 
+// Each covered pair has four possible states: three tiers and unreachable.
+// Sparse rows store rank+tier; dense rows pack four states per byte.
+struct CoreRow {
+    std::vector<uint32_t> sparse;
+    std::vector<uint8_t> packed;
+
+    void finish(size_t roots) {
+        if (sparse.size() * sizeof(uint32_t) < (roots + 3) / 4) {
+            std::sort(sparse.begin(), sparse.end());
+            sparse.shrink_to_fit();
+            return;
+        }
+        packed.assign((roots + 3) / 4, 0xff);
+        for (uint32_t value : sparse) {
+            const uint32_t rank = value >> 2, shift = 2 * (rank & 3);
+            auto& byte = packed[rank >> 2];
+            byte = (byte & ~(3u << shift)) | ((value & 3u) << shift);
+        }
+        std::vector<uint32_t>().swap(sparse);
+    }
+
+    unsigned tier(uint32_t rank) const {
+        if (!packed.empty()) return (packed[rank >> 2] >> (2 * (rank & 3))) & 3u;
+        const uint32_t key = rank << 2;
+        auto it = std::lower_bound(sparse.begin(), sparse.end(), key);
+        return it != sparse.end() && (*it >> 2) == rank ? *it & 3u : 3u;
+    }
+
+    uint64_t bytes() const {
+        return packed.capacity() + sizeof(uint32_t) * sparse.capacity();
+    }
+};
+
 struct KReach {
     const Adj &out, &in;
     int k;
     std::vector<bool> covered;
-    std::vector<std::vector<uint32_t>> rows;
+    std::vector<CoreRow> rows;
+    std::vector<int> rank;
+    uint64_t index_bytes = 0;
     uint64_t entries = 0, bfs_scans = 0;
     int roots = 0;
 
     KReach(const Adj& out, const Adj& in, int k)
-        : out(out), in(in), k(k), covered(out.size()), rows(out.size()) {
+        : out(out), in(in), k(k), covered(out.size()), rank(out.size(), -1) {
         // Take endpoints of every first uncovered edge in a deterministic order.
         for (int u = 0; u < static_cast<int>(out.size()); ++u) {
             if (covered[u]) continue;
@@ -33,11 +68,16 @@ struct KReach {
             }
         }
 
+        for (size_t u = 0; u < covered.size(); ++u)
+            if (covered[u]) rank[u] = roots++;
+        rows.resize(roots);
+        std::cerr << "cover roots=" << roots << "\n";
+        int completed = 0;
         std::vector<int> visited(out.size(), -1), depth(out.size()), queue;
         queue.reserve(out.size());
         for (int root = 0; root < static_cast<int>(out.size()); ++root) {
             if (!covered[root]) continue;
-            ++roots;
+            auto& row = rows[rank[root]];
             queue.clear();
             queue.push_back(root);
             visited[root] = root;
@@ -53,21 +93,24 @@ struct KReach {
                     queue.push_back(v);
                     if (covered[v]) {
                         const unsigned tier = std::max(0, depth[v] - (k - 2));
-                        rows[root].push_back((uint32_t(v) << 2) | tier);
+                        row.sparse.push_back((uint32_t(rank[v]) << 2) | tier);
                     }
                 }
             }
-            std::sort(rows[root].begin(), rows[root].end());
-            entries += rows[root].size();
+            entries += row.sparse.size();
+            row.finish(roots);
+            index_bytes += row.bytes();
+            ++completed;
+            if (completed % 1024 == 0 || completed == roots)
+                std::cerr << "roots=" << completed << "/" << roots << " payload_bytes="
+                          << index_bytes << " entries=" << entries << "\n";
+
         }
     }
 
     bool core(int u, int v, int endpoint_hops) const {
         if (u == v) return true;  // Implicit zero-length core, k >= 2.
-        const auto& row = rows[u];
-        const uint32_t key = uint32_t(v) << 2;
-        auto it = std::lower_bound(row.begin(), row.end(), key);
-        return it != row.end() && *it <= key + (2 - endpoint_hops);
+        return rows[rank[u]].tier(rank[v]) <= unsigned(2 - endpoint_hops);
     }
 
     bool query(int s, int t) const {
@@ -142,6 +185,6 @@ int main(int argc, char** argv) {
               << queries.size() << '\t' << positives << '\t' << errors << '\t'
               << first_ns << '\t' << batch_ns[3];
     for (int count : cases) std::cout << '\t' << count;
-    std::cout << '\n';
+    std::cout << '\t' << index.index_bytes << '\n';
     return errors ? 1 : 0;
 }

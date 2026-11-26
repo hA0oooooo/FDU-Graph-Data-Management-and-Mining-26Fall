@@ -15,7 +15,7 @@ from time import perf_counter
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 METHODS = ["vcrea", "vcrea-plus", "pll", "vcrea-strict", "vcrea-plus-strict"]
-DEFAULT_MIB = 4096
+DEFAULT_MIB = 49152
 
 
 def hash_file(path):
@@ -39,18 +39,25 @@ def write_requests(path, queries):
     path.write_text("".join(f"{s} {t} {k}\n" for s, t, k, _ in queries))
 
 
-def measure(binary, name, method, n, edges, requests, queries, timeout, cap):
+def measure(binary, name, method, n, edges, requests, queries, timeout, cap, progress=None):
     start = perf_counter()
     base = dict(graph=name, method=method, queries=len(queries))
     try:
-        run = subprocess.run([binary, method, str(n), edges, requests, "1"],
-                             capture_output=True, text=True, preexec_fn=partial(limit_child, cap), timeout=timeout)
+        command = [binary, method, str(n), edges, requests, "1"]
+        if progress is None:
+            run = subprocess.run(command, capture_output=True, text=True,
+                                 preexec_fn=partial(limit_child, cap), timeout=timeout)
+        else:
+            with progress.open("w") as log:
+                run = subprocess.run(command, stdout=subprocess.PIPE, stderr=log, text=True,
+                                     preexec_fn=partial(limit_child, cap), timeout=timeout)
     except subprocess.TimeoutExpired:
         return dict(base, status="timeout", elapsed_s=perf_counter()-start)
     if run.returncode:
-        status = "allocation_failed" if "std::bad_alloc" in run.stderr else "failed"
+        stderr = progress.read_text() if progress else run.stderr
+        status = "allocation_failed" if "std::bad_alloc" in stderr else "failed"
         return dict(base, status=status, returncode=run.returncode,
-                    stderr=run.stderr[-600:], elapsed_s=perf_counter()-start)
+                    stderr=stderr[-600:], elapsed_s=perf_counter()-start)
     result = json.loads(run.stdout)
     bits = result.pop("predictions")
     if len(bits) != len(queries) or set(bits) - {"0", "1"}:
@@ -136,7 +143,7 @@ def main():
     ap.add_argument("--queries", type=Path)
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--methods", choices=METHODS, nargs="+", default=METHODS[:3])
-    ap.add_argument("--timeout", type=int, default=180, help="wall seconds per method")
+    ap.add_argument("--timeout", type=int, help="optional wall seconds per method")
     ap.add_argument("--memory-mib", type=int, default=DEFAULT_MIB)
     ap.add_argument("--fixtures-only", action="store_true")
     args = ap.parse_args()

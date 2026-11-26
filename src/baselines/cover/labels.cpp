@@ -116,6 +116,12 @@ struct Index {
         std::vector<int> queue(out.size()), depth(out.size());
         for (int rank = 0; rank < static_cast<int>(order.size()); ++rank) {
             const int hub = order[rank];
+            if (rank == 0 || rank % 1024 == 0) {
+                rusage usage{};
+                getrusage(RUSAGE_SELF, &usage);
+                std::cerr << "roots=" << rank << "/" << order.size()
+                          << " labels=" << entries << " peak_kib=" << usage.ru_maxrss << "\n";
+            }
             for (int back = 0; back < 2; ++back) {
                 const auto& adj = back ? in : out;
                 const auto& eligible = back ? out_receiver : in_receiver;
