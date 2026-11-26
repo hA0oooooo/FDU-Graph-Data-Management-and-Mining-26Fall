@@ -43,7 +43,7 @@ python3 src/prepare_benchmark.py wiki-Vote
 python3 tests/check_workloads.py
 ```
 
-原始压缩包位于本地 `dataset/raw/`，规范文件 `dataset/prepared/<图名>.edges` 与 ID 映射保留原方向、自环并合并重复有向边。原包、边表、编号映射均有 SHA-256，合成图按 [固定种子及概率](../dataset/synthetic.json) 校验。原件全部在 Git 忽略目录
+原始压缩包位于本地 `dataset/raw/`，规范文件 `dataset/prepared/<图名>.edges` 与 ID 映射保留原方向、自环并合并重复有向边。原包、边表、编号映射均有 SHA-256，合成图按 [固定种子及概率](../dataset/synthetic.json) 校验。原件全部在 Git 忽略目录。tests/check_workloads.py 直接读取并核对压缩原件、规范边表及编号映射的实际字节哈希，同时核验正式查询的内容和分组
 
 ##### 正式查询
 

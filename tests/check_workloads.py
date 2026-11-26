@@ -1,5 +1,6 @@
-"""Verify frozen benchmark identity, group membership and source separation."""
+"""Verify frozen graph bytes, benchmark identity, group membership and source separation."""
 from collections import Counter
+from functools import lru_cache
 import csv
 import hashlib
 import json
@@ -10,6 +11,7 @@ def load(path):
     return json.loads(path.read_text())
 
 
+@lru_cache(maxsize=None)
 def sha(path):
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
@@ -19,6 +21,17 @@ def rows(path):
     with path.open() as stream:
         return [(int(q["s"]),int(q["t"]),int(q["k"]),int(q["d"]))
                 for q in csv.DictReader(stream,delimiter="\t")]
+
+
+def verify_files(root, name, specification, frozen):
+    prepared = root/"prepared"
+    files = [(prepared/f"{name}.edges", frozen["edges_sha256"]),
+             (prepared/f"{name}.nodes.tsv", frozen["node_map_sha256"])]
+    if "raw_sha256" in frozen:
+        files.append((root/"raw"/specification["url"].rsplit("/",1)[-1], frozen["raw_sha256"]))
+    for path, expected in files:
+        assert sha(path)==expected, path
+    return len(files)
 
 
 def verify(work, frozen):
@@ -65,9 +78,11 @@ if __name__=="__main__":
     root=Path(__file__).resolve().parents[1]/"dataset"
     specs=load(root/"manifest.json")|load(root/"catalogue.json")|load(root/"synthetic.json")
     total=0
+    file_checks=0
     for name,spec in sorted(specs.items()):
         frozen=spec if "edges_sha256" in spec else load(root/"frozen"/f"{name}.json")
+        file_checks+=verify_files(root,name,spec,frozen)
         count=verify(root/"workloads"/name,frozen)
         total+=count
         print(name,count)
-    print(len(specs),"graphs,",total,"queries verified")
+    print(len(specs),"graphs,",total,"queries and",file_checks,"graph file hashes verified")
