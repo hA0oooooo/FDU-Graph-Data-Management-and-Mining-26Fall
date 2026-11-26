@@ -49,12 +49,12 @@ def run_limited(command, work, seconds, memory_gib, progress=None):
     return p, record
 
 
-def compiled(source, name):
+def compiled(source, name, flags=()):
     dest = BUILD / name
     if not dest.exists() or dest.stat().st_mtime_ns < max(source.stat().st_mtime_ns,(ROOT/"src/benchmark_metrics.hpp").stat().st_mtime_ns):
         with tempfile.TemporaryDirectory(dir=BUILD) as folder:
             binary = Path(folder) / name
-            subprocess.run(["g++", "-O3", "-std=c++17", source, "-o", binary], check=True)
+            subprocess.run(["g++", "-O3", "-std=c++17", *flags, source, "-o", binary], check=True)
             binary.replace(dest)
     return dest
 
@@ -97,12 +97,18 @@ def esti(n, m, edges, rows, work, adapted=False, memory_gib=48, answer_path=None
     return rec
 
 
-def kreach(binary, n, edges, queries, rows, k, work, seconds, memory_gib, progress, answer_path=None):
+def kreach(binary, n, edges, queries, rows, k, work, seconds, memory_gib, progress, answer_path=None, build_threads=1):
     command=[binary,str(n),edges,queries,str(k)]
-    if answer_path is not None:
+    if build_threads>1:
+        command.extend([answer_path or work/"answers.tsv",str(build_threads)])
+    elif answer_path is not None:
         command.append(answer_path)
     p,record=run_limited(command,work,seconds,memory_gib,progress)
     record["k"]=k
+    record["build_threads"]=build_threads
+    record["builder"]="parallel_rows" if build_threads>1 else "scalar"
+    with binary.open("rb") as f:
+        record["binary_sha256"]=hashlib.file_digest(f,"sha256").hexdigest()
     if p.returncode==0:
         record.update(zip(FIELDS,map(int,p.stdout.split()),strict=True))
         if record["mismatches"] or record["queries"]!=sum(row[2]==k for row in rows):
@@ -123,7 +129,10 @@ def main():
     ap.add_argument("--query-name", default="test.tsv")
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--answers-dir", type=Path)
+    ap.add_argument("--build-threads", type=int, default=1, help="K-Reach construction threads")
     a=ap.parse_args()
+    if a.build_threads<1:
+        ap.error("--build-threads must be positive")
     BUILD.mkdir(parents=True,exist_ok=True)
     edges=ROOT/"dataset/prepared"/(a.graph+".edges")
     queries=ROOT/"dataset/workloads"/a.graph/a.query_name
@@ -147,6 +156,8 @@ def main():
         prior=json.loads(a.output.read_text())
         if any(prior.get(k)!=v for k,v in receipt.items() if k!="kreach"):
             raise ValueError("resume input changed")
+        if any(row.get("build_threads",1)!=a.build_threads for row in prior["kreach"]):
+            raise ValueError("resume construction threads changed")
         receipt=prior
     def save():
         tmp=a.output.with_suffix(".json.part")
@@ -154,7 +165,9 @@ def main():
         tmp.replace(a.output)
     with tempfile.TemporaryDirectory(dir=BUILD) as folder:
         work=Path(folder)
-        binary = compiled(ROOT / "src/baselines/kreach/kreach.cpp", "kreach")
+        if "kreach" in a.methods:
+            source=ROOT/"src/baselines/kreach/kreach.cpp"
+            binary=compiled(source,"kreach-parallel",("-fopenmp",)) if a.build_threads>1 else compiled(source,"kreach-serial")
         if "esti" in a.methods and "esti" not in receipt:
             receipt["esti"] = esti(a.nodes, a.edges, edges, rows, work, memory_gib=a.memory_gib, answer_path=answer("esti"))
             if receipt["esti"]["status"] == "exceeds_upstream_capacity" and a.nodes < 30000000:
@@ -164,7 +177,7 @@ def main():
             for k in (a.k or sorted({row[2] for row in rows})):
                 if any(row["k"]==k for row in receipt["kreach"]):
                     continue
-                receipt["kreach"].append(kreach(binary, a.nodes, edges, queries, rows, k, work, a.kreach_seconds, a.memory_gib, a.output.with_suffix(f".k{k}.log").resolve(), answer(f"kreach-{k}")))
+                receipt["kreach"].append(kreach(binary, a.nodes, edges, queries, rows, k, work, a.kreach_seconds, a.memory_gib, a.output.with_suffix(f".k{k}.log").resolve(), answer(f"kreach-{k}"),a.build_threads))
                 save()
 
 

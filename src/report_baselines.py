@@ -173,7 +173,8 @@ def records(run_dir, graph, config):
             status=capacity_status(run_dir, graph, r, row)
             item(f"kreach-{row['k']}",row,status,row.get("queries"),row.get("mismatches"),
                  row.get("build_ns",0)/1e9,row.get("first_batch_ns",0)/1e9,
-                 row.get("index_bytes"),row.get("process_peak_kib"),source=file,limit=row.get("memory_gib"))
+                 row.get("index_bytes"),row.get("process_peak_kib"),source=file,limit=row.get("memory_gib"),
+                 builder=row.get("builder","scalar"),build_threads=row.get("build_threads",1))
     file=dest("scalable")/"scalable.json"
     if file.exists():
         r=load(file)

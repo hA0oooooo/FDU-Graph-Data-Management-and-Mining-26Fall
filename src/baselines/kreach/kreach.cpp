@@ -8,6 +8,9 @@
 #include <string>
 #include <sys/resource.h>
 #include <vector>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 using Adj = std::vector<std::vector<int>>;
 using Clock = std::chrono::steady_clock;
@@ -56,7 +59,7 @@ struct KReach {
     uint64_t entries = 0, bfs_scans = 0;
     int roots = 0;
 
-    KReach(const Adj& out, const Adj& in, int k)
+    KReach(const Adj& out, const Adj& in, int k, int threads=1)
         : out(out), in(in), k(k), covered(out.size()), rank(out.size(), -1) {
         // Take endpoints of every first uncovered edge in a deterministic order.
         for (int u = 0; u < static_cast<int>(out.size()); ++u) {
@@ -74,38 +77,52 @@ struct KReach {
         rows.resize(roots);
         std::cerr << "cover roots=" << roots << "\n";
         int completed = 0;
-        std::vector<int> visited(out.size(), -1), depth(out.size()), queue;
-        queue.reserve(out.size());
-        for (int root = 0; root < static_cast<int>(out.size()); ++root) {
-            if (!covered[root]) continue;
-            auto& row = rows[rank[root]];
-            queue.clear();
-            queue.push_back(root);
-            visited[root] = root;
-            depth[root] = 0;
-            for (size_t i = 0; i < queue.size(); ++i) {
-                const int u = queue[i];
-                if (depth[u] == k) break;
-                bfs_scans += out[u].size();
-                for (int v : out[u]) {
-                    if (visited[v] == root) continue;
-                    visited[v] = root;
-                    depth[v] = depth[u] + 1;
-                    queue.push_back(v);
-                    if (covered[v]) {
-                        const unsigned tier = std::max(0, depth[v] - (k - 2));
-                        row.sparse.push_back((uint32_t(rank[v]) << 2) | tier);
+        #ifdef _OPENMP
+        omp_set_dynamic(0);
+        #else
+        if (threads != 1) throw std::invalid_argument("parallel construction requires OpenMP");
+        #endif
+        #pragma omp parallel num_threads(threads)
+        {
+            std::vector<int> visited(out.size(), -1), depth(out.size()), queue;
+            queue.reserve(out.size());
+            #pragma omp for schedule(dynamic, 1)
+            for (int root = 0; root < static_cast<int>(out.size()); ++root) {
+                if (!covered[root]) continue;
+                auto& row = rows[rank[root]];
+                queue.clear();
+                queue.push_back(root);
+                visited[root] = root;
+                depth[root] = 0;
+                uint64_t scans = 0;
+                for (size_t i = 0; i < queue.size(); ++i) {
+                    const int u = queue[i];
+                    if (depth[u] == k) break;
+                    scans += out[u].size();
+                    for (int v : out[u]) {
+                        if (visited[v] == root) continue;
+                        visited[v] = root;
+                        depth[v] = depth[u] + 1;
+                        queue.push_back(v);
+                        if (covered[v]) {
+                            const unsigned tier = std::max(0, depth[v] - (k - 2));
+                            row.sparse.push_back((uint32_t(rank[v]) << 2) | tier);
+                        }
                     }
                 }
+                uint64_t row_entries = row.sparse.size();
+                row.finish(roots);
+                #pragma omp critical(kreach_progress)
+                {
+                    entries += row_entries;
+                    bfs_scans += scans;
+                    index_bytes += row.bytes();
+                    ++completed;
+                    if (completed % 1024 == 0 || completed == roots)
+                        std::cerr << "roots=" << completed << "/" << roots << " payload_bytes="
+                                  << index_bytes << " entries=" << entries << "\n";
+                }
             }
-            entries += row.sparse.size();
-            row.finish(roots);
-            index_bytes += row.bytes();
-            ++completed;
-            if (completed % 1024 == 0 || completed == roots)
-                std::cerr << "roots=" << completed << "/" << roots << " payload_bytes="
-                          << index_bytes << " entries=" << entries << "\n";
-
         }
     }
 
@@ -133,12 +150,13 @@ struct KReach {
 struct Query { int s, t; bool truth; };
 
 int main(int argc, char** argv) {
-    if (argc != 5 && argc != 6) {
-        std::cerr << "usage: kreach N EDGES WORKLOAD K [answer-file]\n";
+    if (argc < 5 || argc > 7) {
+        std::cerr << "usage: kreach N EDGES WORKLOAD K [answer-file [build-threads]]\n";
         return 2;
     }
     const int n = std::stoi(argv[1]), k = std::stoi(argv[4]);
-    if (n < 0 || n > (1 << 30) || k < 2)
+    const int threads = argc==7 ? std::stoi(argv[6]) : 1;
+    if (n < 0 || n > (1 << 30) || k < 2 || threads<1)
         throw std::invalid_argument("requires 0 <= N <= 2^30 and K >= 2");
     Adj out(n), in(n);
     std::ifstream graph(argv[2]), workload(argv[3]);
@@ -157,7 +175,7 @@ int main(int argc, char** argv) {
     if (queries.empty()) throw std::runtime_error("no queries with requested K");
 
     const auto start = Clock::now();
-    KReach index(out, in, k);
+    KReach index(out, in, k,threads);
     const auto build_ns = std::chrono::duration_cast<Nanoseconds>(Clock::now() - start).count();
     uint64_t ready=khop_bench::rss_kib();
     int errors = 0, positives = 0, cases[4] = {};
@@ -170,7 +188,7 @@ int main(int argc, char** argv) {
     });
     const auto& answers=timing.answers;
     for(size_t i=0;i<queries.size();++i)errors+=answers[i]!=queries[i].truth;
-    if (argc==6) {
+    if (argc>=6) {
         std::ofstream file(argv[5]);
         file<<"answer\n";
         for(uint8_t answer:answers) file<<int(answer)<<'\n';

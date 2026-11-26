@@ -20,6 +20,13 @@ int main() {
             dist[s][t]=std::min(dist[s][t],dist[s][v]+dist[v][t]);
         for(int k=2;k<=n+1;++k) {
             KReach index(out,in,k);
+            KReach parallel(out,in,k,4);
+            if(index.rank!=parallel.rank || index.entries!=parallel.entries ||
+               index.bfs_scans!=parallel.bfs_scans || index.index_bytes!=parallel.index_bytes)
+                throw std::logic_error("parallel index totals differ");
+            for(size_t i=0;i<index.rows.size();++i)
+                if(index.rows[i].sparse!=parallel.rows[i].sparse || index.rows[i].packed!=parallel.rows[i].packed)
+                    throw std::logic_error("parallel index row differs");
             for(int s=0;s<n;++s) for(int t:out[s])
                 if(!index.covered[s] && !index.covered[t]) throw std::logic_error("invalid cover");
             for(int s=0;s<n;++s) for(int t=0;t<n;++t) {
@@ -49,5 +56,5 @@ int main() {
     if (sparse.sparse.empty() || packed.packed.empty()) throw std::logic_error("row layout not exercised");
     for(uint32_t r=0;r<41;++r)
         if(sparse.tier(r)!=packed.tier(r)) throw std::logic_error("packing changed tier");
-    std::cout<<comparisons<<" K-Reach comparisons passed\n";
+    std::cout<<comparisons<<" K-Reach comparisons and parallel row checks passed\n";
 }

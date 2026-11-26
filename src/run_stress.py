@@ -40,12 +40,23 @@ def budget_wait(gib,reserve):
 
 def lower_bounds(prior):
     result={}
-    for name in ("kreach-capacity.tsv",):
+    identities={(r["graph"],r["method"]):r.get("graph_sha256") for r in read_rows(prior)}
+    for name in ("kreach-capacity.tsv","kreach-partition-capacity.tsv"):
         path=prior.parent/name
         if path.exists():
             for r in read_rows(path):
-                result[(r["graph"],f"kreach-{r['k']}")]=int(r["payload_lower_bytes"])
+                key=(r["graph"],f"kreach-{r['k']}")
+                if name=="kreach-partition-capacity.tsv" and r["graph_sha256"]!=identities.get(key):
+                    raise ValueError(f"{key}: partition certificate graph identity differs")
+                result[key]=max(result.get(key,0),int(r["payload_lower_bytes"]))
     return result
+
+
+def upper_payload_bounds(prior):
+    path=prior.parent/"kreach-capacity.tsv"
+    if not path.exists():
+        return {}
+    return {(r["graph"],f"kreach-{r['k']}"):int(r["payload_upper_bytes"]) for r in read_rows(path)}
 
 
 def target_for(root, graph, method, gib):
@@ -77,15 +88,14 @@ def run_attempt(root, graph, method, gib, spec, cpus, build_threads, query_name,
         k=int(method.rsplit("-",1)[1])
         command=[sys.executable,ROOT/"src/baselines/historical.py","--graph",graph,"--nodes",str(spec["nodes"]),
                  "--edges",str(spec["edges"]),"--query-name",query_name,"--methods","kreach","--k",str(k),
-                 "--memory-gib",str(gib),"--output",receipt,"--answers-dir",target/"answers"]
+                 "--memory-gib",str(gib),"--output",receipt,"--answers-dir",target/"answers",
+                 "--build-threads",str(build_threads)]
         expected=sum(int(r["k"])==k for r in read_rows(query_path))
-        builder="scalar"; threads=1
     else:
         command=[sys.executable,ROOT/"src/baselines/cover/matrix.py",graph,"--methods",method,
                  "--builder","packed","--build-threads",str(build_threads),
                  "--memory-mib",str(gib*1024),"--query-name",query_name,"--output",target/"raw"]
         expected=query["queries"]
-        builder="packed"; threads=build_threads
     if not receipt.exists():
         with (target/"driver.log").open("a") as log:
             subprocess.run(["taskset","-c",cpus,*map(str,command)],cwd=ROOT,
@@ -93,6 +103,7 @@ def run_attempt(root, graph, method, gib, spec, cpus, build_threads, query_name,
     raw=load(receipt)
     if method.startswith("kreach-"):
         r=raw["kreach"][0]
+        builder=r.get("builder","scalar"); threads=r.get("build_threads",1)
         status=r["status"]
         if "bad_alloc" in r.get("detail",""): status="allocation_failed"
         checked=r.get("queries"); errors=r.get("mismatches")
@@ -103,6 +114,7 @@ def run_attempt(root, graph, method, gib, spec, cpus, build_threads, query_name,
         answers=target/"answers"/(method+".tsv")
     else:
         r=raw["results"][0]; status=r["status"]
+        builder=raw.get("builder","scalar"); threads=raw.get("build_threads",1)
         classes=r.get("by_class")
         checked=sum(c["n"] for c in classes.values()) if classes else None
         errors=sum(c["mismatches"] for c in classes.values()) if classes else None
@@ -166,10 +178,11 @@ def write_table(path,rows):
 
 def review_run(root, meta):
     info=load(root/"run.json")
+    verified_bounds=lower_bounds(Path(info["source"]))
     results=[]; attempts=[]
     for job in info["jobs"]:
         graph,method=job["graph"],job["method"]
-        bound=job.get("lower_bytes") or 0
+        bound=max(job.get("lower_bytes") or 0,verified_bounds.get((graph,method),0))
         if bound>info["physical_memory_bytes"]:
             results.append(dict(graph=graph,method=method,status="physical_capacity_proved",
                                 lower_bytes=bound,physical_memory_bytes=info["physical_memory_bytes"]))
@@ -210,6 +223,7 @@ def main():
         return
     prior=read_rows(args.prior)
     lower=lower_bounds(args.prior)
+    upper=upper_payload_bounds(args.prior)
     total=meminfo()["MemTotal"]
     jobs=[(r["graph"],r["method"]) for r in prior if r["status"] in ("capacity_proved","allocation_failed")
           and (r["method"].startswith("kreach-") or r["method"] in ("vcrea","vcrea-plus","pll"))]
@@ -217,7 +231,7 @@ def main():
     attempts=[];results=[]
     save(args.output/"run.json",dict(source=str(args.prior.resolve()),query_name=args.query_name,
          budgets=args.budgets,cpu_set=args.cpu_set,build_threads=args.build_threads,host=socket.gethostname(),
-         physical_memory_bytes=total,jobs=[dict(graph=g,method=m,lower_bytes=lower.get((g,m))) for g,m in jobs]))
+         physical_memory_bytes=total,jobs=[dict(graph=g,method=m,lower_bytes=lower.get((g,m)),upper_payload_bytes=upper.get((g,m))) for g,m in jobs]))
     for graph,method in jobs:
         bound=lower.get((graph,method),0)
         if bound>total:
@@ -229,6 +243,12 @@ def main():
         options=[b for b in sorted(set(args.budgets)) if b*2**30>bound and (b+args.reserve_gib)*2**30<=total]
         if not options:
             raise RuntimeError(f"{graph} {method}: no feasible budget")
+        ceiling=upper.get((graph,method))
+        if ceiling is not None:
+            sufficient=[b for b in options if b*2**30>ceiling]
+            existing=[b for b in options if receipt_for(target_for(args.output,graph,method,b),graph,method).exists()]
+            if sufficient:
+                options=sorted(set(sufficient+existing))
         for gib in options:
             if not receipt_for(target_for(args.output,graph,method,gib),graph,method).exists():
                 print(graph,method,"waiting for",gib,"GiB",flush=True)

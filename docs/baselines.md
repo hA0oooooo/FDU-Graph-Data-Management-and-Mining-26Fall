@@ -52,9 +52,25 @@ baojian（xsuper）有 48 个物理核、96 个逻辑 CPU、503 GiB RAM。默认
 | 图 | $k=4$ 负载下界 GiB | $k=6$ 负载下界 GiB |
 | --- | ---: | ---: |
 | Pokec | 144.60 | 311.10 |
-| LiveJournal1 | 245.48 | 1793.37 |
+| LiveJournal1 | 586.23（最初下界 245.48） | 1793.37 |
 
-两图 $k=4$ 均已在 96 GiB 地址空间下触发实际分配失败。$k=6$ 的下界严格超过该预算，保存已建前缀、取消信号及证据，记为 `capacity_proved`。这些下界针对当前确定的覆盖集和行编码。LiveJournal 的六跳下界超过该服务器的 503 GiB RAM。其他三个完整索引在提高预算后按实际完成、分配失败或更强容量证据记录。K-Reach 证据表及决策回执位于 `output/baselines/20261126-complete/kreach-capacity.tsv` 和原运行目录中的 `capacity_decisions.json`
+两图 $k=4$ 均已在 96 GiB 地址空间下触发实际分配失败。$k=6$ 的下界严格超过该预算，保存已建前缀、取消信号及证据，记为 `capacity_proved`。这些下界针对当前确定的覆盖集和行编码。LiveJournal 的四跳、六跳下界均超过该服务器的 503 GiB RAM。Pokec 的四跳和六跳完整索引继续提高预算构建，均有约 333.31 GiB 的负载上界。K-Reach 证据表及决策回执位于 `output/baselines/20261126-complete/kreach-capacity.tsv` 和原运行目录中的 `capacity_decisions.json`
+
+进一步将目标覆盖集 $C$ 按距 512 个高入出度乘积见证点的最近正向距离划为互不重叠的子集 $P_i$。对于源点 $u$，设经见证点 $w$ 的可用剩余跳数为 $k-d(u,w)$，则每个子集可独立选择证实最多目标的见证点
+
+$$
+L_u=\max\left(0,\sum_i\max_{w:d(u,w)\le k}
+\bigl|\{v\in P_i:d(w,v)\le k-d(u,w)\}\bigr|-1\right)
+$$
+
+各子集互斥，且每个计入目标都有原图路径证据，故 $L_u$ 是非自身可达覆盖根数的严格下界。对单行负载使用 $\min(4L_u,\lceil |C|/4\rceil)$，求和可得到整体负载下界。分区下界在 7,284 个小图核心行上与完整 BFS 距离核验一致，LiveJournal 四跳的实测证书为 629,454,501,006 bytes，超过物理内存与交换空间总计 583,554,162,688 bytes。原证据保留，新增证据及图、源码和二进制指纹存于 output/baselines/20261126-complete/kreach-partition-capacity.tsv
+
+```sh
+g++ -O3 -march=native -std=c++17 src/baselines/kreach/capacity.cpp -o cache/kreach-capacity
+cache/kreach-capacity check
+cache/kreach-capacity soc-LiveJournal1 4847571 dataset/prepared/soc-LiveJournal1.edges 4 512
+```
+
 
 ##### 实验回执目录
 
@@ -114,7 +130,7 @@ python3 src/rank_results.py output/baselines/20261126-standard-matched/performan
 
 ##### 高内存补跑
 
-原预算下容量受限的配置保留原有证据和结果，另以串行方式提高内存至 256、384、448 GiB，采用 CPU 24–31 的八线程等价标签构建与单线程查询。固定 K-Reach 构建本身仍是单线程。根据已有容量下界直接选择足够大的第一档预算，启动前等待共享主机有对应地址空间预算及 32 GiB 可用内存余量。无墙钟限制
+原预算下容量受限的配置保留原有证据和结果，另以串行方式提高内存至 256、384、448 GiB，最后可在物理容量允许时提高至 464 GiB。CPU 24–31 的构建预算为八线程，查询保持单线程。根据容量下界排除不足预算，完整 K-Reach 若已有负载上界则选择能覆盖该上界的初始预算，Pokec 四、六跳均从 384 GiB 起步。启动前等待共享主机留有对应预算及 32 GiB 可用内存余量。无墙钟限制
 
 ```sh
 python3 src/run_stress.py output/baselines/20261126-complete/performance.tsv --output output/baselines/20261126-expanded-stress
@@ -123,4 +139,6 @@ python3 src/run_stress.py output/baselines/20261126-complete/performance.tsv --o
 
 完整标签的并行构建将每批根的记录按接收顶点分区，每个线程独立写入一个顶点区间，并在区间内保持根的递增次序。此实现通过 1,587 次完整逐字节索引比较以及 564 图标签计数核验。Pokec 的 PLL 前 4,096 根在八线程下进行单独的构建吞吐核验，顺序写入为 250.53 s，分区写入为 101.13 s，均生成 3,313,414,773 条标签和 6,627,346,373 字节编码；该前缀试验仅核验构建效率，不计入正式查询结果。email-EuAll 的完整 VCRea+ 两实现的编码、容量和逐条答案一致，分区写入在较小图上未加速。详细回执位于 output/validation/baselines/20261126-sharded-labels，已启动的完整构建使用启动时的源码指纹与原预算记录
 
-output/baselines/20261126-expanded-stress/run.json 保存补跑任务队列，methods/<方法>/<图>/ 下按预算留存原始回执和答案。reviewed_performance.tsv 依据已生成回执复查完成项，区分无回执的已启动、待运行、实际分配失败和严格物理容量下界。LiveJournal $k=6$ 当前表示的必要空间约 1,793 GiB，已证明超过物理内存；其余入队配置需等待真实结果。大内存和八线程构建采用独立排名数据，避免与单线程统一预算下的构建时间直接混排
+固定 K-Reach 并行构建使用与单线程相同的覆盖集和距离三档编码，每个线程持有独立 BFS 工作区并只写负责的索引行，按根编号的最终行完全一致。新版通过 69,120 次独立判定及逐行编码比较，Wiki-Vote 的真实冻结请求及完整压力入口也运行通过。Pokec 四跳前 512 根的吞吐核验为单线程 20.42 s、八线程 3.66 s，两者条目、扫描量、负载及行校验相同，见 output/validation/baselines/20261127-kreach-parallel。该前缀只衡量构建吞吐，完整构建仍以最终查询核验为准
+
+output/baselines/20261126-expanded-stress/run.json 保存补跑任务队列，methods/<方法>/<图>/ 下按预算留存原始回执和答案。reviewed_performance.tsv 依据已生成回执复查完成项，区分无回执的已启动、待运行、实际分配失败和严格物理容量下界。LiveJournal 四、六跳当前索引表示已有严格空间不可行证据。Pokec 的 Directed PLL 已在 256 GiB 下完成，构建 10,076.23 s、编码负载 46,092,602,219 bytes、峰值约 63.5 GiB，23,551 条请求零错答；首次批次计时保留。其余可行入队配置需等待真实结果。大内存和八线程构建采用独立排名数据，避免与单线程统一预算下的构建时间直接混排
