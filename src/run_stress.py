@@ -146,7 +146,8 @@ def run_attempt(root, graph, method, gib, spec, cpus, build_threads, query_name,
              process_peak_kib=r.get("process_peak_kib") if valid else None,
              query_sha256=query["sha256"],graph_sha256=manifest["graph_sha256"],receipt=str(receipt.relative_to(root)),
              answers=str(answers.relative_to(root)) if answers.exists() else None,
-             builder=builder,build_threads=threads,execution_memory_gib=gib,comparison_budget_gib=gib,
+             builder=builder,build_threads=threads,packed_percent=raw.get("packed_percent",100 if builder=="packed" else None),
+             execution_memory_gib=gib,comparison_budget_gib=gib,
              solver_threads=1,host=socket.gethostname(),cpu_affinity=cpus,
              cpu_count=len(parse_cpus(cpus)),concurrent_configurations=1)
     if not review:

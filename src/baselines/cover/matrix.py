@@ -23,9 +23,13 @@ def main():
     ap.add_argument("--memory-mib", type=int, default=49152)
     ap.add_argument("--builder", choices=("scalar","packed"), default="scalar")
     ap.add_argument("--build-threads", type=int, default=1)
+    ap.add_argument("--packed-percent", type=int, help="percentage of roots using packed waves; default 25 for multi-threaded packed builds, 100 otherwise")
     args = ap.parse_args()
     if args.build_threads<1 or (args.builder=="scalar" and args.build_threads!=1):
         ap.error("parallel construction requires the packed builder")
+    percent=args.packed_percent if args.packed_percent is not None else (25 if args.builder=="packed" and args.build_threads>1 else 100)
+    if not 0<=percent<=100 or (args.builder=="scalar" and percent!=100):
+        ap.error("packed percentage requires the packed builder and must be between 0 and 100")
     if args.timeout is not None and args.timeout <= 0 or args.memory_mib <= 0:
         ap.error("resource limits must be positive")
     workloads = ROOT / "dataset/workloads"
@@ -54,7 +58,8 @@ def main():
                           compiler=compiler,child_address_cap_bytes=cap,wall_timeout_s=timeout,
                           degree_threshold=1,edges_sha256=meta["graph_sha256"],
                           queries_file=queries.name,queries_sha256=query_spec["sha256"])
-            if args.builder=="packed": inputs.update(builder="packed",build_threads=args.build_threads)
+            if args.builder=="packed": inputs.update(builder="packed" if percent==100 else "packed-hybrid",
+                                                       build_threads=args.build_threads,packed_percent=percent)
             jobs = []
             for method in args.methods:
                 path = args.output/graph/f"{method}.json"
@@ -79,7 +84,7 @@ def main():
             for method,path in jobs:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 result = measure(binary,graph,method,n,edges,qp,rows,timeout,cap,path.with_suffix(".log"),path.with_suffix(".answers.tsv"),
-                                 [str(args.build_threads)] if args.builder=="packed" else [])
+                                 [str(args.build_threads),str(percent)] if args.builder=="packed" else [])
                 save(path,dict(inputs,results=[result]))
                 print(graph,method,result["status"],round(result["elapsed_s"],2),flush=True)
                 if result["status"] == "mismatch":

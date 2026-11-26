@@ -3,11 +3,18 @@
 #include "capacity.cpp"
 #include <memory>
 
-Index packed_index(const Adj& out,const Adj& in,const std::string& method,int threads=1) {
+Index packed_index(const Adj& out,const Adj& in,const std::string& method,int threads=1,int packed_percent=100) {
     const bool pll=method=="pll",plus=method=="vcrea-plus";
     if(!pll && !plus && method!="vcrea")throw std::invalid_argument("packed canonical method");
-    if(threads<1)throw std::invalid_argument("positive build thread count");
+    if(threads<1 || packed_percent<0 || packed_percent>100)
+        throw std::invalid_argument("invalid construction threads or packed percentage");
     Index index(out,in,method,1,false);
+    const int roots=index.order.size(),wave=128*threads;
+    const int packed_roots=uint64_t(roots)*packed_percent/100;
+    if(!packed_roots) {
+        index.extend(method,0);
+        return index;
+    }
     const auto ranks=root_ranks(out.size(),index.order);
     omp_set_dynamic(0);
     omp_set_num_threads(threads);
@@ -16,10 +23,9 @@ Index packed_index(const Adj& out,const Adj& in,const std::string& method,int th
     {
         scratch[omp_get_thread_num()]=std::make_unique<BitScratch>(out.size());
     }
-    const int roots=index.order.size(),wave=128*threads;
     uint64_t scans=0;
-    for(int first=0;first<roots;first+=wave) {
-        int stop=std::min(first+wave,roots),groups=(stop-first+127)/128;
+    for(int first=0;first<packed_roots;first+=wave) {
+        int stop=std::min(first+wave,packed_roots),groups=(stop-first+127)/128;
         for(int reverse=0;reverse<2;++reverse) {
             using Records=std::vector<std::vector<std::pair<int,int>>>;
             std::vector<Records> staged(groups);
@@ -60,14 +66,17 @@ Index packed_index(const Adj& out,const Adj& in,const std::string& method,int th
         }
     }
     index.scans=scans;
+    scratch.clear();
+    if(packed_roots<roots)index.extend(method,packed_roots);
     return index;
 }
 
 #ifndef PACKED_LABELS_LIBRARY
 int main(int argc,char** argv) {
-    if((argc!=6 && argc!=7) || std::stoi(argv[5])!=1)
-        throw std::invalid_argument("packed method N edges queries threshold=1");
-    int n=std::stoi(argv[2]),threads=argc==7?std::stoi(argv[6]):1;
+    if((argc<6 || argc>8) || std::stoi(argv[5])!=1)
+        throw std::invalid_argument("packed method N edges queries threshold=1 [threads [packed-percent]]");
+    int n=std::stoi(argv[2]),threads=argc>=7?std::stoi(argv[6]):1;
+    int packed_percent=argc==8?std::stoi(argv[7]):100;
     Adj out(n),in(n);
     std::ifstream edges(argv[3]),requests(argv[4]);
     int u,v,k;
@@ -76,7 +85,7 @@ int main(int argc,char** argv) {
     while(requests>>u>>v>>k)queries.push_back({u,v,k});
     if(!edges.eof() || !requests.eof())throw std::runtime_error("invalid input");
     auto start=Clock::now();
-    auto index=packed_index(out,in,argv[1],threads);
+    auto index=packed_index(out,in,argv[1],threads,packed_percent);
     auto built=Clock::now();
     uint64_t ready=khop_bench::rss_kib();
     auto timing=khop_bench::measure(queries.size(),[&](size_t i){
@@ -97,6 +106,6 @@ int main(int argc,char** argv) {
              <<",\"query_ns\":"<<timing.first_ns<<",\"median_query_ns\":"<<timing.median_ns
              <<",\"query_repeats\":"<<timing.repeats<<",\"ready_rss_kib\":"<<ready
              <<",\"index_allocated_bytes\":"<<index.allocated_bytes()<<",\"process_peak_kib\":"<<usage.ru_maxrss
-             <<",\"predictions\":\""<<predictions<<"\",\"builder\":\"packed\",\"build_threads\":"<<threads<<"}\n";
+             <<",\"predictions\":\""<<predictions<<"\",\"builder\":\""<<(packed_percent==100?"packed":"packed-hybrid")<<"\",\"packed_percent\":"<<packed_percent<<",\"build_threads\":"<<threads<<"}\n";
 }
 #endif

@@ -111,12 +111,15 @@ struct Index {
                 if (static_cast<int>(in[v].size()) > threshold) in_receiver[v] = 1;
             }
         }
-        if (!materialize) return;
+        if (materialize) extend(method,0);
+    }
+
+    void extend(const std::string& method,int first) {
         const bool strict = method.find("strict") != std::string::npos;
         const bool prune = !strict && method.find("full") == std::string::npos;
         std::vector<int> root_leg(order.size(), INF), seen(out.size(), -1);
         std::vector<int> queue(out.size()), depth(out.size());
-        for (int rank = 0; rank < static_cast<int>(order.size()); ++rank) {
+        for (int rank = first; rank < static_cast<int>(order.size()); ++rank) {
             const int hub = order[rank];
             if (rank == 0 || rank % 1024 == 0) {
                 rusage usage{};

@@ -12,6 +12,16 @@ int main() {
             Index packed=packed_index(out,in,method,out.size()>=130?4:1);
             if(scalar.entries!=packed.entries || scalar.order!=packed.order)
                 throw std::logic_error("packed root or label count mismatch");
+            for(int percentage:{0,25,50,100}) {
+                auto hybrid=packed_index(out,in,method,out.size()>=130?4:1,percentage);
+                if(hybrid.entries!=scalar.entries || hybrid.order!=scalar.order)
+                    throw std::logic_error("hybrid root or entry count mismatch");
+                for(size_t v=0;v<out.size();++v)
+                    if(scalar.out_labels[v].bytes!=hybrid.out_labels[v].bytes || scalar.in_labels[v].bytes!=hybrid.in_labels[v].bytes ||
+                       scalar.out_labels[v].bytes.capacity()!=hybrid.out_labels[v].bytes.capacity() ||
+                       scalar.in_labels[v].bytes.capacity()!=hybrid.in_labels[v].bytes.capacity())
+                        throw std::logic_error("hybrid index bytes differ");
+            }
             auto ranks=root_ranks(out.size(),packed.order);
             BitScratch scratch(out.size());
             std::vector<uint32_t> forward_counts(out.size()),reverse_counts(out.size());
