@@ -71,6 +71,51 @@ def prepare(n, edges, work):
     (work / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 
+def export_comparison(dest, metadata):
+    from statistics import median
+    query=WORKLOADS/metadata["graph"]/metadata["query_name"]
+    truth=[str(int(0<=int(q["d"])<=int(q["k"]))) for q in read_rows(query)
+           if metadata["fixed_k"] is None or int(q["k"])==metadata["fixed_k"]]
+    builds={r["method"]:r for r in read_rows(dest/"build.tsv")}
+    repeated=read_rows(dest/"repeats.tsv")
+    rounds={m:[r for r in repeated if r["method"]==m] for m in [*builds,"bibfs"]}
+    reference=median(float(r["mean_us"]) for r in rounds["bibfs"])
+    rows=[]
+    for measured in read_rows(dest/"comparison.tsv"):
+        name=measured["method"]
+        b=builds[name]
+        n=int(measured["queries"])
+        answers=[r["answer"] for r in read_rows(dest/"methods"/name/"answers.tsv")]
+        if n!=metadata["queries"] or int(measured["mismatches"]) or answers!=truth:
+            raise ValueError("candidate comparison is incomplete or incorrect")
+        batch_s=int(measured["batch_ns"])/1e9
+        build_s=sum(float(b[key]) for key in ("root_ms","profile_ms","training_ms","choose_ms","build_ms"))/1000
+        label_bytes=int(b["table_bytes"])
+        method={"uniform":"uniform-h","structural":"adaptive-structural-h","workload":"adaptive-workload-h","uniform-active":"uniform-active-h"}[name]
+        trial=rounds[name]
+        latency=median(float(r["mean_us"]) for r in trial)
+        scans=median(int(r["scans"]) for r in trial)
+        certificates=median(int(r["upper"])+int(r["lower"]) for r in trial)
+        row=dict(graph=metadata["graph"],method=method,status="verified",expected=n,checked=n,mismatches=0,
+                 build_s=build_s,batch_s=batch_s,mean_us=batch_s*1e6/n,index_payload_bytes=label_bytes,
+                 process_peak_kib=None,query_sha256=metadata["query_sha256"],graph_sha256=metadata["graph_sha256"],
+                 receipt="comparison.tsv",answers=f"methods/{name}/answers.tsv",
+                 execution_memory_gib=metadata["memory_gib"],comparison_budget_gib=metadata["memory_gib"],
+                 solver_threads=1,host=metadata["host"],cpu_affinity=",".join(map(str,metadata["cpu_affinity"])),
+                 cpu_count=metadata["cpu_count"],concurrent_configurations=1,
+                 label_budget_multiple=metadata["label_budget_multiple"],retained_labels=int(b["labels"]),
+                 median_query_us=latency,bibfs_median_query_us=reference,median_speedup=reference/latency,
+                 median_scans=scans,certificate_fraction=certificates/n,shared_peak_kib=int((dest/"peak_kib.txt").read_text()))
+        rows.append(row)
+        target=dest/"methods"/name
+        (target/"build.json").write_text(json.dumps(dict(b,build_s=build_s,metadata=metadata),indent=2)+"\n")
+        (target/"query.json").write_text(json.dumps(row,indent=2)+"\n")
+    with (dest/"performance.tsv").open("w") as f:
+        writer=csv.DictWriter(f,fieldnames=list(rows[0]),delimiter="\t",lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--graph", required=True)
@@ -78,6 +123,8 @@ def main():
     ap.add_argument("--fixed-k", choices=[2,4,6], type=int, help="select, build and evaluate using just this threshold")
     ap.add_argument("--prepare-only", action="store_true")
     ap.add_argument("--query-name", choices=QUERY_FILES, default="test.tsv")
+    ap.add_argument("--active-uniform", action="store_true", help="compare workload-selected roots with a shared nonzero radius")
+    ap.add_argument("--label-budget-multiple", type=int, default=4, help="retained-label budget as a multiple of |V|")
     ap.add_argument("--memory-gib", type=int, default=48)
     ap.add_argument("--cpu-count", type=int, default=1)
     ap.add_argument("--output", type=Path, help="measurement directory; defaults to output/adaptive-radius/<graph>")
@@ -104,9 +151,13 @@ def main():
         dest = dest / Path(a.query_name).stem
     if a.fixed_k and not a.output:
         dest = dest / "fixed-k" / str(a.fixed_k)
+    if a.label_budget_multiple!=4 and not a.output:
+        dest = dest / f"budget-{a.label_budget_multiple}n"
+    if a.active_uniform and not a.output:
+        dest = dest / "active-uniform"
     dest.mkdir(parents=True, exist_ok=True)
     available=sorted(os.sched_getaffinity(0))
-    if not 1<=a.cpu_count<=len(available) or a.memory_gib<1:
+    if not 1<=a.cpu_count<=len(available) or a.memory_gib<1 or a.label_budget_multiple<1:
         ap.error("choose positive memory and an available CPU count")
     cpus=available[:a.cpu_count]
     os.sched_setaffinity(0,cpus)
@@ -119,14 +170,22 @@ def main():
         count=len(read_rows(query))
     metadata=dict(graph=a.graph, graph_sha256=manifest["graph_sha256"], query_sha256=query_hash,
                   query_name=a.query_name,fixed_k=a.fixed_k,queries=count,memory_gib=a.memory_gib,
+                  label_budget_multiple=a.label_budget_multiple,active_uniform=a.active_uniform,
                   comparison_budget_gib=a.memory_gib,execution_memory_gib=a.memory_gib,
                   cpu_affinity=cpus,cpu_count=len(cpus),solver_threads=1,concurrent_configurations=1,
                   host=socket.gethostname())
-    (dest/"run.json").write_text(json.dumps(metadata,indent=2)+"\n")
     binary = compile_tool("measure")
+    fingerprint=hashlib.sha256()
+    for path in sorted([HERE/"measure.cpp",HERE/"index.hpp",HERE/"graph.hpp",HERE/"run.py"]):
+        fingerprint.update(path.name.encode())
+        fingerprint.update(path.read_bytes())
+    metadata.update(source_sha256=fingerprint.hexdigest(),binary_sha256=digest(binary),
+                    git_revision=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip())
+    (dest/"run.json").write_text(json.dumps(metadata,indent=2)+"\n")
     memory=a.memory_gib*2**30
     subprocess.run(["prlimit",f"--as={memory}:{memory}","--","/usr/bin/time", "-f", "%M", "-o", str(dest / "peak_kib.txt"),
-                    binary, str(a.nodes), edges, work, dest, str(a.fixed_k or -1), a.query_name], check=True)
+                    binary, str(a.nodes), edges, work, dest, str(a.fixed_k or -1), a.query_name, str(a.label_budget_multiple), str(int(a.active_uniform))], check=True)
+    export_comparison(dest,metadata)
     print(a.graph, f"k={a.fixed_k}" if a.fixed_k else "mixed k",
           read_rows(dest / "repeats.tsv")[0]["n"], "test queries passed")
 

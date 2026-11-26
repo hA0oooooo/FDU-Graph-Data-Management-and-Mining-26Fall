@@ -81,7 +81,7 @@ inline bool profile_hit(const Profiles& p,int side,int a,int b,const Query& q) {
 }
 
 inline Config allocate(const Profiles& p,Count cap,const std::vector<Query>& train,
-                       const std::vector<unsigned>& weights) {
+                       const std::vector<unsigned>& weights,int uniform_depth=0) {
     Config h(p.size());
     Count count=h.size();
     std::vector<bool> covered(train.size());
@@ -91,6 +91,7 @@ inline Config allocate(const Profiles& p,Count cap,const std::vector<Query>& tra
         Count cost=0;
         for (int i=0;i<int(h.size());i+=2) {
             for (int a=h[i];a<=max_radius;++a) for (int b=h[i+1];b<=max_radius;++b) {
+                if (uniform_depth && ((a && a!=uniform_depth) || (b && b!=uniform_depth))) continue;
                 if (a==h[i] && b==h[i+1]) continue;
                 Count delta=p[i].entries[a]-p[i].entries[h[i]]
                            +p[i+1].entries[b]-p[i+1].entries[h[i+1]];

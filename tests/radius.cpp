@@ -39,7 +39,9 @@ int main() {
             assert(!topo.witness(g,q) || q.d>q.k);
             assert(!tree.witness(g,q) || q.d<=q.k);
         }
-        for (auto cfg:{Config(6,0),Config{0,2,1,0,3,2},structural(p,12),allocate(p,12,qs,weights)}) {
+        auto uniform_active=allocate(p,12,qs,weights,2);
+        for (int h:uniform_active) assert(h==0 || h==2);
+        for (auto cfg:{Config(6,0),Config{0,2,1,0,3,2},structural(p,12),uniform_active,allocate(p,12,qs,weights)}) {
             Index packed(p,roots,cfg), fresh(g,roots,cfg);
             for (auto& q:qs) {
                 assert(packed.query(g,search,q).yes==(q.d<=q.k));
