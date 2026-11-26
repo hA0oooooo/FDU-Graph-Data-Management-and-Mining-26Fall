@@ -85,7 +85,8 @@ struct BitScratch {
                       const std::vector<int>& order,int first,int count,int radius,bool pll,
                       std::vector<std::vector<std::pair<int,int>>>* records=nullptr,
                       bool collect_plus=false,uint64_t* edge_scans=nullptr,
-                      std::vector<uint32_t>* row_counts=nullptr) {
+                      std::vector<uint32_t>* row_counts=nullptr,int record_shards=1) {
+        const size_t shard_width=(ranks.size()+record_shards-1)/record_shards;
         std::fill(seen.begin(),seen.end(),0);
         const __uint128_t mask=count==128?~__uint128_t{0}:((__uint128_t{1}<<count)-1);
         __uint128_t alive=mask;
@@ -107,11 +108,12 @@ struct BitScratch {
                 if(plus_receiver)total.plus+=number;
                 if(row_counts && (collect_plus?plus_receiver:receiver)) (*row_counts)[u]+=number;
                 if(records && (collect_plus?plus_receiver:receiver)) {
+                    size_t base=(size_t(u)/shard_width)*count;
                     for(int part=0;part<2;++part) {
                         uint64_t bits=static_cast<uint64_t>(good>>(64*part));
                         while(bits) {
                             int rank=64*part+__builtin_ctzll(bits);
-                            (*records)[rank].emplace_back(u,layer);
+                            (*records)[base+rank].emplace_back(u,layer);
                             bits&=bits-1;
                         }
                     }

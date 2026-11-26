@@ -1,4 +1,4 @@
-// Equivalent single-thread canonical label construction using root bit batches.
+// Canonical label construction using root bit batches and disjoint receiver shards.
 #define COVER_CAPACITY_LIBRARY
 #include "capacity.cpp"
 #include <memory>
@@ -30,21 +30,27 @@ Index packed_index(const Adj& out,const Adj& in,const std::string& method,int th
             #pragma omp parallel for schedule(dynamic,1) reduction(+:scanned)
             for(int group=0;group<groups;++group) {
                 int begin=first+128*group,count=std::min(128,stop-begin);
-                staged[group].resize(count);
+                staged[group].resize(count*threads);
                 uint64_t local=0;
                 scratch[omp_get_thread_num()]->count(adj,opposite,ranks,index.order,begin,count,
-                     out.size(),pll,&staged[group],plus,&local);
+                     out.size(),pll,&staged[group],plus,&local,nullptr,threads);
                 scanned+=local;
             }
             scans+=scanned;
-            for(int group=0;group<groups;++group) {
-                int begin=first+128*group;
-                for(int i=0;i<int(staged[group].size());++i)
-                    for(auto [v,distance]:staged[group][i]) {
-                        target[v].append(begin+i,distance);
-                        ++index.entries;
-                    }
+            // Each shard owns a disjoint vertex range and appends roots in rank order.
+            uint64_t inserted=0;
+            #pragma omp parallel for schedule(static) reduction(+:inserted)
+            for(int shard=0;shard<threads;++shard) {
+                for(int group=0;group<groups;++group) {
+                    int begin=first+128*group,count=std::min(128,stop-begin);
+                    for(int i=0;i<count;++i)
+                        for(auto [v,distance]:staged[group][shard*count+i]) {
+                            target[v].append(begin+i,distance);
+                            ++inserted;
+                        }
+                }
             }
+            index.entries+=inserted;
         }
         if(first==0 || stop%1024==0 || stop==roots) {
             rusage usage{};

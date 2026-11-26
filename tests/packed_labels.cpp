@@ -51,5 +51,11 @@ int main() {
     Adj chain(301);
     for(int u=0;u<300;++u)chain[u].push_back(u+1);
     verify(chain);
+    Adj multiple_waves(1051);
+    for(int u=0;u<1051;++u) {
+        multiple_waves[u].push_back((u+1)%1051);
+        multiple_waves[u].push_back((u+73)%1051);
+    }
+    verify(multiple_waves);
     std::cout<<checked<<" full index byte comparisons passed\n";
 }

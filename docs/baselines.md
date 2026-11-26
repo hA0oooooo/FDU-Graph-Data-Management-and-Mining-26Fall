@@ -120,4 +120,6 @@ python3 src/run_stress.py output/baselines/20261126-complete/performance.tsv --o
 python3 src/run_stress.py output/baselines/20261126-complete/performance.tsv --output output/baselines/20261126-expanded-stress --review
 ```
 
+完整标签的并行构建将每批根的记录按接收顶点分区，每个线程独立写入一个顶点区间，并在区间内保持根的递增次序。此实现通过 1,587 次完整逐字节索引比较以及 564 图标签计数核验。Pokec 的 PLL 前 4,096 根在八线程下进行单独的构建吞吐核验，顺序写入为 250.53 s，分区写入为 101.13 s，均生成 3,313,414,773 条标签和 6,627,346,373 字节编码；该前缀试验仅核验构建效率，不计入正式查询结果。email-EuAll 的完整 VCRea+ 两实现的编码、容量和逐条答案一致，分区写入在较小图上未加速。详细回执位于 output/validation/baselines/20261126-sharded-labels，已启动的完整构建使用启动时的源码指纹与原预算记录
+
 output/baselines/20261126-expanded-stress/run.json 保存补跑任务队列，methods/<方法>/<图>/ 下按预算留存原始回执和答案。reviewed_performance.tsv 依据已生成回执复查完成项，区分无回执的已启动、待运行、实际分配失败和严格物理容量下界。LiveJournal $k=6$ 当前表示的必要空间约 1,793 GiB，已证明超过物理内存；其余入队配置需等待真实结果。大内存和八线程构建采用独立排名数据，避免与单线程统一预算下的构建时间直接混排
