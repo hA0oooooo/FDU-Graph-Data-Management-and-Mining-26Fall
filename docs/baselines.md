@@ -54,7 +54,7 @@ baojian（xsuper）有 48 个物理核、96 个逻辑 CPU、503 GiB RAM。默认
 | Pokec | 144.60 | 311.10 |
 | LiveJournal1 | 245.48 | 1793.37 |
 
-两图 $k=4$ 均已在 96 GiB 地址空间下触发实际分配失败。$k=6$ 的下界严格超过该预算，保存已建前缀、取消信号及证据，记为 `capacity_proved`。这些下界针对当前确定的覆盖集和行编码。LiveJournal 的六跳下界也超过该服务器的 503 GiB RAM。其他方法仍按实际完成或资源失败记录。证据表及决策回执位于 `output/baselines/20261126-complete/kreach-capacity.tsv` 和原运行目录中的 `capacity_decisions.json`
+两图 $k=4$ 均已在 96 GiB 地址空间下触发实际分配失败。$k=6$ 的下界严格超过该预算，保存已建前缀、取消信号及证据，记为 `capacity_proved`。这些下界针对当前确定的覆盖集和行编码。LiveJournal 的六跳下界也超过该服务器的 503 GiB RAM。其他方法仍按实际完成或资源失败记录。K-Reach 证据表及决策回执位于 `output/baselines/20261126-complete/kreach-capacity.tsv` 和原运行目录中的 `capacity_decisions.json`
 
 ##### 实验回执目录
 
@@ -75,7 +75,7 @@ baojian（xsuper）有 48 个物理核、96 个逻辑 CPU、503 GiB RAM。默认
 | K-Reach | 41 / 45 |
 | VCRea、VCRea+、Directed PLL | 各 13 / 15 |
 
-截至本次核验，共通过 185 项、2,622,161 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建曾因资源方案调整暂停，原回执保留；统一 48 GiB 后继续容量核验与补跑。LiveJournal 的 Directed PLL、VCRea+ 和 VCRea 已分别取得约 49.39 GiB、48.76 GiB、48.08 GiB 的必要编码下界，Pokec 的三项完整标签仍在构建和核验，最新状态以本机合并回执为准
+截至本次核验，共通过 185 项、2,622,161 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建曾因资源方案调整暂停，原回执保留；统一 48 GiB 后继续容量核验与补跑。LiveJournal 的 Directed PLL、VCRea+ 和 VCRea 已分别取得约 49.39 GiB、48.76 GiB、48.08 GiB 的必要编码下界，Pokec 的 PLL 和 VCRea+ 分别取得 48.02 GiB、48.13 GiB 的逐行分配容量下界。仅 Pokec 的基础 VCRea 尚在构建，最新状态以本机合并回执为准
 
 为初步候选方法对比，另外在固定逻辑 CPU 46 和统一 48 GiB 的条件下复测六张代表图，78 个配置全部通过，数据位于 output/baselines/20261126-pilot-matched，候选试验与强消融见 [自适应半径](adaptive-radius.md)
 
