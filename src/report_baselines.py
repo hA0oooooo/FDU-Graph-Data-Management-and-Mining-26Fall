@@ -56,15 +56,28 @@ def capacity_status(run_dir, graph, receipt, row):
     return "capacity_proved"
 
 
-def label_capacity_status(run_dir, graph, method, receipt, row):
+def label_capacity_status(run_dir, graph, method, receipt, row, original=True):
     path=run_dir/"label_capacity_decisions.json"
     if row.get("returncode")!=-15:
         return row["status"]
     decisions=[d for d in load(path) if (d["graph"],d["method"])==(graph,method)] if path.exists() else []
     if not decisions:
         previous=run_dir/"protocol-decisions.json"
-        if previous.exists() and any((d["graph"],d["method"],d["query_sha256"],d["source_sha256"])==
+        if original and previous.exists() and any((d["graph"],d["method"],d["query_sha256"],d["source_sha256"])==
                   (graph,method,receipt["queries_sha256"],receipt["source_sha256"]) for d in load(previous)):
+            retries=run_dir/"retry-labels.json"
+            if retries.exists():
+                for job in load(retries):
+                    if (job["graph"],job["method"])!=(graph,method):
+                        continue
+                    proc=Path(f'/proc/{job["pid"]}/cmdline')
+                    if proc.exists():
+                        try:
+                            argv=proc.read_bytes().decode().strip("\0").split("\0")
+                        except FileNotFoundError:
+                            argv=[]
+                        if any(v.endswith("baselines/cover/matrix.py") for v in argv) and graph in argv and method in argv:
+                            return "running"
             return "superseded_protocol"
         return row["status"]
     if len(decisions)!=1:
@@ -86,7 +99,7 @@ def records(run_dir, graph, config):
     def dest(family):
         return run_dir/"methods"/family/graph if method_layout else run_dir/graph
     result = {}
-    def item(name, row, status, checked=None, errors=None, build=None, query=None, size=None, rss=None, source=None, limit=None):
+    def item(name, row, status, checked=None, errors=None, build=None, query=None, size=None, rss=None, source=None, limit=None, builder=None):
         fixed=int(name.rsplit("-",1)[1]) if name.startswith(("scalable-","kreach-")) else None
         n=counts[fixed] if fixed is not None else expected
         valid=status in ("passed","verified","ok")
@@ -107,7 +120,7 @@ def records(run_dir, graph, config):
              index_payload_bytes=size if valid else None, process_peak_kib=rss if valid else None,
              query_sha256=query_hash, graph_sha256=edge_hash,
              receipt=str(source.relative_to(run_dir)) if source else None,
-             answers=answer_path, execution_memory_gib=limit,
+             answers=answer_path, builder=builder, execution_memory_gib=limit,
              comparison_budget_gib=config.get("comparison_budget_gib",config.get("memory_gib")),
              solver_threads=config.get("solver_threads",1),
              host=config.get("host"),cpu_affinity=",".join(map(str,config.get("cpu_affinity",[]))) or None,
@@ -163,6 +176,10 @@ def records(run_dir, graph, config):
         retry=run_dir/"methods"/method/graph/(method+".json")
         if not method_layout and retry.exists():
             file=retry
+        packed=run_dir/"packed-labels"/graph/(method+".json")
+        if packed.exists() and load(packed)["results"][0]["status"]=="ok":
+            if not file.exists() or load(file)["results"][0]["status"]!="ok":
+                file=packed
         if not file.exists():
             continue
         r=load(file)
@@ -177,8 +194,8 @@ def records(run_dir, graph, config):
         classes=row.get("by_class")
         checked=sum(c["n"] for c in classes.values()) if classes else None
         errors=sum(c["mismatches"] for c in classes.values()) if classes else None
-        item(method,row,label_capacity_status(run_dir,graph,method,r,row),checked,errors,row.get("build_ns",0)/1e9,
-             row.get("query_ns",0)/1e9,row.get("encoded_bytes"),row.get("process_peak_kib"),source=file,limit=r.get("child_address_cap_bytes",0)/2**30 or None)
+        item(method,row,label_capacity_status(run_dir,graph,method,r,row,original=file!=retry),checked,errors,row.get("build_ns",0)/1e9,
+             row.get("query_ns",0)/1e9,row.get("encoded_bytes"),row.get("process_peak_kib"),source=file,limit=r.get("child_address_cap_bytes",0)/2**30 or None,builder=r.get("builder","scalar"))
 
     methods = ["bfs","bibfs","esti","gen-k-reach","vcrea","vcrea-plus","pll"]
     methods += [f"{name}-{k}" for name in ("scalable","kreach") for k in sorted(counts)]
@@ -218,7 +235,7 @@ def write_method_results(output, rows, source_runs=None):
         raw_root=source_runs[row["run"]] if source_runs else output
         raw=raw_root/row["receipt"] if row.get("receipt") else None
         answer=raw_root/row["answers"] if row.get("answers") else None
-        identity={k:row[k] for k in ("graph","method","graph_sha256","query_sha256","execution_memory_gib",
+        identity={k:row[k] for k in ("graph","method","graph_sha256","query_sha256","builder","execution_memory_gib",
                                    "comparison_budget_gib","solver_threads","host","cpu_affinity","cpu_count","concurrent_configurations")}
         identity["raw_receipt"]=str(raw.resolve()) if raw else None
         build=dict(identity,status=row["status"],build_s=row["build_s"],

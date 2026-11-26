@@ -1,6 +1,7 @@
 """Measure all three competitive variants on any ready frozen workloads."""
 import argparse
 import csv
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -20,14 +21,21 @@ def main():
     ap.add_argument("--methods", nargs="+", choices=METHODS[:3], default=METHODS[:3])
     ap.add_argument("--query-name", default="test.tsv", help="file in each frozen workload directory")
     ap.add_argument("--memory-mib", type=int, default=49152)
+    ap.add_argument("--builder", choices=("scalar","packed"), default="scalar")
     args = ap.parse_args()
     if args.timeout is not None and args.timeout <= 0 or args.memory_mib <= 0:
         ap.error("resource limits must be positive")
     workloads = ROOT / "dataset/workloads"
     graphs = args.graphs or sorted(p.parent.name for p in workloads.glob("*/manifest.json"))
-    src = HERE / "labels.cpp"
+    src = HERE / ("packed_labels.cpp" if args.builder=="packed" else "labels.cpp")
     src_sha = hash_file(src)
     flags = ["-O3", "-std=c++17"]
+    if args.builder=="packed":
+        fingerprint=hashlib.sha256()
+        for path in (src,HERE/"capacity.cpp",HERE/"labels.cpp"):
+            fingerprint.update(path.read_bytes())
+        src_sha=fingerprint.hexdigest()
+        flags.extend(("-march=native","-fopenmp"))
     cap = args.memory_mib * 1024**2
     compiler = subprocess.check_output(["g++","-dumpfullversion"],text=True).strip()
     with tempfile.TemporaryDirectory() as folder:
@@ -43,6 +51,7 @@ def main():
                           compiler=compiler,child_address_cap_bytes=cap,wall_timeout_s=timeout,
                           degree_threshold=1,edges_sha256=meta["graph_sha256"],
                           queries_file=queries.name,queries_sha256=query_spec["sha256"])
+            if args.builder=="packed": inputs["builder"]="packed"
             jobs = []
             for method in args.methods:
                 path = args.output/graph/f"{method}.json"

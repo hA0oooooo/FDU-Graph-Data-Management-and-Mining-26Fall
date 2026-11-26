@@ -99,7 +99,7 @@ struct Index {
     std::vector<int> order;
     int64_t entries = 0, scans = 0, visited = 0, redundant = 0;
 
-    Index(const Adj& forward, const Adj& reverse, const std::string& method, int threshold)
+    Index(const Adj& forward, const Adj& reverse, const std::string& method, int threshold, bool materialize=true)
         : out(forward), in(reverse), out_labels(out.size()), in_labels(out.size()),
           out_receiver(out.size()), in_receiver(out.size()),
           order(root_order(out, in, method != "pll")) {
@@ -110,6 +110,7 @@ struct Index {
                 if (static_cast<int>(in[v].size()) > threshold) in_receiver[v] = 1;
             }
         }
+        if (!materialize) return;
         const bool strict = method.find("strict") != std::string::npos;
         const bool prune = !strict && method.find("full") == std::string::npos;
         std::vector<int> root_leg(order.size(), INF), seen(out.size(), -1);

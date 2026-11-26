@@ -73,7 +73,9 @@ struct BitScratch {
     }
 
     LabelCounts count(const Adj& adj,const Adj& opposite,const std::vector<int>& ranks,
-                      const std::vector<int>& order,int first,int count,int radius,bool pll) {
+                      const std::vector<int>& order,int first,int count,int radius,bool pll,
+                      std::vector<std::vector<std::pair<int,int>>>* records=nullptr,
+                      bool collect_plus=false,uint64_t* edge_scans=nullptr) {
         std::fill(seen.begin(),seen.end(),0);
         const __uint128_t mask=count==128?~__uint128_t{0}:((__uint128_t{1}<<count)-1);
         __uint128_t alive=mask;
@@ -91,7 +93,18 @@ struct BitScratch {
                 unsigned number=__builtin_popcountll(static_cast<uint64_t>(good)) + __builtin_popcountll(static_cast<uint64_t>(good>>64));
                 bool receiver=pll || ranks[u]<static_cast<int>(ranks.size());
                 if(receiver)total.basic+=number;
-                if(receiver || opposite[u].size()>1)total.plus+=number;
+                bool plus_receiver=receiver || opposite[u].size()>1;
+                if(plus_receiver)total.plus+=number;
+                if(records && (collect_plus?plus_receiver:receiver)) {
+                    for(int part=0;part<2;++part) {
+                        uint64_t bits=static_cast<uint64_t>(good>>(64*part));
+                        while(bits) {
+                            int rank=64*part+__builtin_ctzll(bits);
+                            (*records)[rank].emplace_back(u,layer);
+                            bits&=bits-1;
+                        }
+                    }
+                }
             }
             alive&=has_clean;
             if(!alive || layer==radius) {
@@ -103,6 +116,7 @@ struct BitScratch {
                 __uint128_t bits=front[u]&alive,bad=dirty[u]&bits;
                 front[u]=dirty[u]=0;
                 if(!bits)continue;
+                if(edge_scans)*edge_scans+=adj[u].size();
                 for(int v:adj[u]) {
                     __uint128_t fresh=bits&~seen[v];
                     if(!fresh)continue;
