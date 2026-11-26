@@ -101,7 +101,7 @@ def export_comparison(dest, metadata):
                  process_peak_kib=None,query_sha256=metadata["query_sha256"],graph_sha256=metadata["graph_sha256"],
                  receipt="comparison.tsv",answers=f"methods/{name}/answers.tsv",
                  execution_memory_gib=metadata["memory_gib"],comparison_budget_gib=metadata["memory_gib"],
-                 solver_threads=1,host=metadata["host"],cpu_affinity=",".join(map(str,metadata["cpu_affinity"])),
+                 solver_threads=1,build_threads=1,host=metadata["host"],cpu_affinity=",".join(map(str,metadata["cpu_affinity"])),
                  cpu_count=metadata["cpu_count"],concurrent_configurations=1,
                  label_budget_multiple=metadata["label_budget_multiple"],retained_labels=int(b["labels"]),
                  median_query_us=latency,bibfs_median_query_us=reference,median_speedup=reference/latency,

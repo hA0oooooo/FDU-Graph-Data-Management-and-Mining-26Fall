@@ -11,7 +11,7 @@ def row(method, size, build, batch, status="verified"):
                 expected=str(size),checked=str(size) if status=="verified" else "",
                 status=status,mismatches="0" if status=="verified" else "",build_s=str(build),batch_s=str(batch),index_payload_bytes="0",
                 process_peak_kib="100",execution_memory_gib="48",comparison_budget_gib="48",
-                solver_threads="1",cpu_count="1",cpu_affinity="0",host="host",concurrent_configurations="1")
+                solver_threads="1",build_threads="1",cpu_count="1",cpu_affinity="0",host="host",concurrent_configurations="1")
 
 
 class ParetoTest(unittest.TestCase):

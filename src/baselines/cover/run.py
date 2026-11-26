@@ -39,11 +39,11 @@ def write_requests(path, queries):
     path.write_text("".join(f"{s} {t} {k}\n" for s, t, k, _ in queries))
 
 
-def measure(binary, name, method, n, edges, requests, queries, timeout, cap, progress=None, answer_path=None):
+def measure(binary, name, method, n, edges, requests, queries, timeout, cap, progress=None, answer_path=None, extra_args=()):
     start = perf_counter()
     base = dict(graph=name, method=method, queries=len(queries))
     try:
-        command = [binary, method, str(n), edges, requests, "1"]
+        command = [binary, method, str(n), edges, requests, "1",*extra_args]
         if progress is None:
             run = subprocess.run(command, capture_output=True, text=True,
                                  preexec_fn=partial(limit_child, cap), timeout=timeout)

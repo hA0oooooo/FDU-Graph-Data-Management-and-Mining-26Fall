@@ -9,10 +9,27 @@ int main() {
         for(int u=0;u<int(out.size());++u)for(int v:out[u])in[v].push_back(u);
         for(auto method:{"vcrea","vcrea-plus","pll"}) {
             Index scalar(out,in,method,1);
-            Index packed=packed_index(out,in,method);
+            Index packed=packed_index(out,in,method,out.size()>=130?4:1);
             if(scalar.entries!=packed.entries || scalar.order!=packed.order)
                 throw std::logic_error("packed root or label count mismatch");
+            auto ranks=root_ranks(out.size(),packed.order);
+            BitScratch scratch(out.size());
+            std::vector<uint32_t> forward_counts(out.size()),reverse_counts(out.size());
+            for(int first=0;first<int(packed.order.size());first+=128) {
+                int count=std::min(128,int(packed.order.size())-first);
+                bool pll=std::string(method)=="pll",plus=std::string(method)=="vcrea-plus";
+                scratch.count(out,in,ranks,packed.order,first,count,out.size(),pll,nullptr,plus,nullptr,&forward_counts);
+                scratch.count(in,out,ranks,packed.order,first,count,out.size(),pll,nullptr,plus,nullptr,&reverse_counts);
+            }
             for(size_t v=0;v<out.size();++v) {
+                uint32_t exact_in=0,exact_out=0;
+                for(Cursor c(scalar.in_labels[v]);c.next();)++exact_in;
+                for(Cursor c(scalar.out_labels[v]);c.next();)++exact_out;
+                if(forward_counts[v]!=exact_in || reverse_counts[v]!=exact_out)
+                    throw std::logic_error("row witness count differs from the full labels");
+                if(vector_capacity_lower(forward_counts[v])>scalar.in_labels[v].bytes.capacity() ||
+                   vector_capacity_lower(reverse_counts[v])>scalar.out_labels[v].bytes.capacity())
+                    throw std::logic_error("row-vector lower bound exceeded actual capacity");
                 if(scalar.out_labels[v].bytes!=packed.out_labels[v].bytes ||
                    scalar.in_labels[v].bytes!=packed.in_labels[v].bytes)
                     throw std::logic_error("packed label bytes differ from scalar");

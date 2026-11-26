@@ -12,6 +12,15 @@ struct LabelCounts {
     }
 };
 
+
+// libstdc++ vector<uint8_t> grows from zero by doubling when append exhausts
+// capacity; every necessary label contributes at least two appended bytes.
+uint64_t vector_capacity_lower(uint64_t entries) {
+    if(!entries)return 0;
+    uint64_t required=2*entries;
+    return uint64_t{1}<<(64-__builtin_clzll(required-1));
+}
+
 struct Scratch {
     std::vector<int> stamp, depth, queue;
     std::vector<char> clean;
@@ -75,7 +84,8 @@ struct BitScratch {
     LabelCounts count(const Adj& adj,const Adj& opposite,const std::vector<int>& ranks,
                       const std::vector<int>& order,int first,int count,int radius,bool pll,
                       std::vector<std::vector<std::pair<int,int>>>* records=nullptr,
-                      bool collect_plus=false,uint64_t* edge_scans=nullptr) {
+                      bool collect_plus=false,uint64_t* edge_scans=nullptr,
+                      std::vector<uint32_t>* row_counts=nullptr) {
         std::fill(seen.begin(),seen.end(),0);
         const __uint128_t mask=count==128?~__uint128_t{0}:((__uint128_t{1}<<count)-1);
         __uint128_t alive=mask;
@@ -95,6 +105,7 @@ struct BitScratch {
                 if(receiver)total.basic+=number;
                 bool plus_receiver=receiver || opposite[u].size()>1;
                 if(plus_receiver)total.plus+=number;
+                if(row_counts && (collect_plus?plus_receiver:receiver)) (*row_counts)[u]+=number;
                 if(records && (collect_plus?plus_receiver:receiver)) {
                     for(int part=0;part<2;++part) {
                         uint64_t bits=static_cast<uint64_t>(good>>(64*part));

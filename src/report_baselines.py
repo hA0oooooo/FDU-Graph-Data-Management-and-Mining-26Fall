@@ -99,7 +99,7 @@ def records(run_dir, graph, config):
     def dest(family):
         return run_dir/"methods"/family/graph if method_layout else run_dir/graph
     result = {}
-    def item(name, row, status, checked=None, errors=None, build=None, query=None, size=None, rss=None, source=None, limit=None, builder=None):
+    def item(name, row, status, checked=None, errors=None, build=None, query=None, size=None, rss=None, source=None, limit=None, builder=None, build_threads=1):
         fixed=int(name.rsplit("-",1)[1]) if name.startswith(("scalable-","kreach-")) else None
         n=counts[fixed] if fixed is not None else expected
         valid=status in ("passed","verified","ok")
@@ -120,7 +120,7 @@ def records(run_dir, graph, config):
              index_payload_bytes=size if valid else None, process_peak_kib=rss if valid else None,
              query_sha256=query_hash, graph_sha256=edge_hash,
              receipt=str(source.relative_to(run_dir)) if source else None,
-             answers=answer_path, builder=builder, execution_memory_gib=limit,
+             answers=answer_path, builder=builder, build_threads=build_threads, execution_memory_gib=limit,
              comparison_budget_gib=config.get("comparison_budget_gib",config.get("memory_gib")),
              solver_threads=config.get("solver_threads",1),
              host=config.get("host"),cpu_affinity=",".join(map(str,config.get("cpu_affinity",[]))) or None,
@@ -180,6 +180,10 @@ def records(run_dir, graph, config):
         if packed.exists() and load(packed)["results"][0]["status"]=="ok":
             if not file.exists() or load(file)["results"][0]["status"]!="ok":
                 file=packed
+        parallel_packed=run_dir/"parallel-packed-labels"/graph/(method+".json")
+        if parallel_packed.exists() and load(parallel_packed)["results"][0]["status"]=="ok":
+            if not file.exists() or load(file)["results"][0]["status"]!="ok":
+                file=parallel_packed
         if not file.exists():
             continue
         r=load(file)
@@ -195,7 +199,7 @@ def records(run_dir, graph, config):
         checked=sum(c["n"] for c in classes.values()) if classes else None
         errors=sum(c["mismatches"] for c in classes.values()) if classes else None
         item(method,row,label_capacity_status(run_dir,graph,method,r,row,original=file!=retry),checked,errors,row.get("build_ns",0)/1e9,
-             row.get("query_ns",0)/1e9,row.get("encoded_bytes"),row.get("process_peak_kib"),source=file,limit=r.get("child_address_cap_bytes",0)/2**30 or None,builder=r.get("builder","scalar"))
+             row.get("query_ns",0)/1e9,row.get("encoded_bytes"),row.get("process_peak_kib"),source=file,limit=r.get("child_address_cap_bytes",0)/2**30 or None,builder=r.get("builder","scalar"),build_threads=r.get("build_threads",1))
 
     methods = ["bfs","bibfs","esti","gen-k-reach","vcrea","vcrea-plus","pll"]
     methods += [f"{name}-{k}" for name in ("scalable","kreach") for k in sorted(counts)]
@@ -235,7 +239,7 @@ def write_method_results(output, rows, source_runs=None):
         raw_root=source_runs[row["run"]] if source_runs else output
         raw=raw_root/row["receipt"] if row.get("receipt") else None
         answer=raw_root/row["answers"] if row.get("answers") else None
-        identity={k:row[k] for k in ("graph","method","graph_sha256","query_sha256","builder","execution_memory_gib",
+        identity={k:row[k] for k in ("graph","method","graph_sha256","query_sha256","builder","build_threads","execution_memory_gib",
                                    "comparison_budget_gib","solver_threads","host","cpu_affinity","cpu_count","concurrent_configurations")}
         identity["raw_receipt"]=str(raw.resolve()) if raw else None
         build=dict(identity,status=row["status"],build_s=row["build_s"],

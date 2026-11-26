@@ -24,7 +24,7 @@ def points(rows, strict=False):
         if len({r["method"] for r in group})!=len(group):
             raise ValueError(f"{graph}: duplicate method in comparison")
         if strict:
-            keys=("execution_memory_gib","comparison_budget_gib","solver_threads","cpu_count","concurrent_configurations")
+            keys=("execution_memory_gib","comparison_budget_gib","solver_threads","build_threads","cpu_count","concurrent_configurations")
             protocols={(r.get("host"),r.get("cpu_affinity"),*(number(r,k) for k in keys)) for r in group if r["status"]=="verified"}
             if len(protocols)!=1 or any(v is None or v=="" for v in next(iter(protocols),())):
                 raise ValueError(f"{graph}: verified methods have different or unknown resource settings")
@@ -36,6 +36,7 @@ def points(rows, strict=False):
                 method=method.rsplit("-",1)[0]
             configs[method].append(row)
         graph_points=[]
+        thread_counts={number(r,"build_threads") or 1 for r in group if r["status"]=="verified"}
         for method, variants in configs.items():
             ready=all(r["status"]=="verified" and number(r,"mismatches")==0 for r in variants) and sum(int(r["checked"]) for r in variants)==n
             base=dict(graph=graph,method=method,queries=n,configurations=len(variants),
@@ -50,6 +51,8 @@ def points(rows, strict=False):
                             peak_single_process_kib=max(peak) if all(v is not None for v in peak) else None)
                 base["mean_us"]=base["batch_s"]*1e6/n
                 budgets={number(r,"comparison_budget_gib") for r in variants}
+                if len(thread_counts)>1 and any((number(r,"build_threads") or 1)!=min(thread_counts) for r in variants):
+                    base["status"]="different_build_threads"
                 if len(budgets)==1 and None not in budgets and base["index_payload_bytes"] is not None:
                     if base["index_payload_bytes"]>next(iter(budgets))*2**30:
                         base["status"]="payload_exceeds_budget"

@@ -1,5 +1,9 @@
 """Aggregate disjoint canonical-label witnesses and an already-built prefix."""
 import argparse
+from array import array
+import hashlib
+import struct
+import sys
 import json
 from pathlib import Path
 
@@ -54,8 +58,46 @@ def bounds(folder, memory_gib):
     return results
 
 
+def vector_snapshot(path, graph, method, memory_gib):
+    """Independently sum the required capacity from a row-count snapshot."""
+    path=Path(path)
+    data=path.read_bytes()
+    if len(data)<48 or data[:8]!=b"KHOPCAP1":
+        raise ValueError("invalid row-capacity snapshot")
+    n,roots,end,radius,pll=struct.unpack("<5Q",data[8:48])
+    if len(data)!=48+9*n or not 0<end<=roots<=n or pll not in (0,1):
+        raise ValueError("invalid row-capacity dimensions")
+    flags=data[48:48+n]
+    if any(flag not in (0,1) for flag in flags) or sum(flags)!=roots:
+        raise ValueError("invalid root membership")
+    if (method=="pll")!=bool(pll) or (pll and roots!=n):
+        raise ValueError("snapshot method mismatch")
+    entries=lower=0
+    for offset in (48+n,48+5*n):
+        counts=array("I")
+        counts.frombytes(data[offset:offset+4*n])
+        if sys.byteorder!="little":
+            counts.byteswap()
+        for i,count in enumerate(counts):
+            if count>end:
+                raise ValueError("row has more labels than processed roots")
+            if method=="vcrea" and not flags[i]:
+                continue
+            entries+=count
+            if count:
+                lower+=1<<((2*count-1).bit_length())
+    return dict(kind="vector_capacity",graph=graph,method=method,memory_gib=memory_gib,
+                snapshot=str(path),snapshot_sha256=hashlib.sha256(data).hexdigest(),nodes=n,
+                root_count=roots,through_root=end,radius=radius,lower_entries=entries,lower_bytes=lower)
+
+
 def verify(evidence):
     """Recheck the numeric and root-range components of a saved certificate."""
+    if evidence.get("kind")=="vector_capacity":
+        computed=vector_snapshot(evidence["snapshot"],evidence["graph"],evidence["method"],evidence["memory_gib"])
+        if any(evidence[k]!=value for k,value in computed.items()) or computed["lower_bytes"]<=computed["memory_gib"]*2**30:
+            raise ValueError("row-capacity certificate does not prove the memory limit")
+        return
     first=evidence["prefix_roots"]
     end=first
     method=evidence["method"]
