@@ -73,11 +73,12 @@ baojian（xsuper）有 48 个物理核、96 个逻辑 CPU、503 GiB RAM。默认
 | ESTI（含 LiveJournal 扩容版） | 15 / 15 |
 | Scalable K-Reach / gen-k-reach | 45 / 45、15 / 15 |
 | K-Reach | 41 / 45 |
-| VCRea、VCRea+、Directed PLL | 各 13 / 15 |
+| VCRea | 14 / 15 |
+| VCRea+、Directed PLL | 各 13 / 15 |
 
-截至本次核验，共通过 185 项、2,622,161 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建曾因资源方案调整暂停，原回执保留；统一 48 GiB 后继续容量核验与补跑。LiveJournal 的 Directed PLL、VCRea+ 和 VCRea 已分别取得约 49.39 GiB、48.76 GiB、48.08 GiB 的必要编码下界，Pokec 的 PLL 和 VCRea+ 分别取得 48.02 GiB、48.13 GiB 的逐行分配容量下界。仅 Pokec 的基础 VCRea 在该预算下仍在构建。上述证据均针对原来的预算或编码布局；高内存补跑状态见下文
+截至本次核验，共通过 186 项、2,645,712 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建曾因资源方案调整暂停，原回执保留；统一 48 GiB 后继续容量核验与补跑。LiveJournal 的 Directed PLL、VCRea+ 和 VCRea 已分别取得约 49.39 GiB、48.76 GiB、48.08 GiB 的必要编码下界，Pokec 的 PLL 和 VCRea+ 分别取得 48.02 GiB、48.13 GiB 的逐行分配容量下界。Pokec 的基础 VCRea 由八线程完整等价构建通过，实测构建 10,537.02 s，12,790,248,069 条标签，编码负载 26,173,860,885 bytes，峰值约 36.7 GiB，23,551 条查询零错答。该结果使用首次批次计时，单独保留，不参与单线程的严格排名。原低预算实验已全部形成完成或容量回执。上述容量证据针对当时的预算和编码布局，高内存补跑状态见下文
 
-为候选方法对比，固定逻辑 CPU 46 和统一 48 GiB 复测六张代表图。20261126-pilot-matched 首批计时 78 项全部通过；20261126-standard-matched 统一预热及五次批次计时的 78 项、1,059,561 次判定也全部通过，均保存实际辅助索引大小。候选试验与强消融见 [自适应半径](adaptive-radius.md)
+为候选方法对比，固定逻辑 CPU 46 和统一 48 GiB 复测六张代表图。20261126-pilot-matched 首批计时 78 项全部通过；20261126-standard-matched 统一预热及五次批次计时的 78 项、1,059,561 次判定也全部通过，均保存实际辅助索引大小。其余七张具备全部基线低预算结果的图以同样的 CPU 46、48 GiB 和五轮协议补测，目录为 output/baselines/20261126-standard-extended，两批完成后严格汇总至 output/baselines/20261126-standard-all/ranking。候选试验与强消融见 [自适应半径](adaptive-radius.md)
 
 以 web-BerkStan 的 22,850 条正式查询为例，首次批查询耗时约为双向 BFS 0.070 s、gen-k-reach 0.258 s、VCRea+ 0.015 s。后两者构建分别约 10.3 s 与 61.5 s。Pokec 和 LiveJournal 的普通限深 BFS 批查询分别约 964 s 和 1,860 s，而双向 BFS 均约 0.56 s。两图的 gen-k-reach 构建分别约 459 s 与 902 s，批查询约 5.53 s 与 5.40 s。表明双向 BFS 是本查询分布下需要认真对比的在线基线，不能仅凭建表或命中标签推定最终收益
 
