@@ -94,7 +94,7 @@ cache/kreach-capacity soc-LiveJournal1 4847571 dataset/prepared/soc-LiveJournal1
 
 截至本次核验，共通过 186 项、2,645,712 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建曾因资源方案调整暂停，原回执保留；统一 48 GiB 后继续容量核验与补跑。LiveJournal 的 Directed PLL、VCRea+ 和 VCRea 已分别取得约 49.39 GiB、48.76 GiB、48.08 GiB 的必要编码下界，Pokec 的 PLL 和 VCRea+ 分别取得 48.02 GiB、48.13 GiB 的逐行分配容量下界。Pokec 的基础 VCRea 由八线程完整等价构建通过，实测构建 10,537.02 s，12,790,248,069 条标签，编码负载 26,173,860,885 bytes，峰值约 36.7 GiB，23,551 条查询零错答。该结果使用首次批次计时，单独保留，不参与单线程的严格排名。原低预算实验已全部形成完成或容量回执。上述容量证据针对当时的预算和编码布局，高内存补跑状态见下文
 
-为候选方法对比，固定逻辑 CPU 46 和统一 48 GiB 复测六张代表图。20261126-pilot-matched 首批计时 78 项全部通过；20261126-standard-matched 统一预热及五次批次计时的 78 项、1,059,561 次判定也全部通过，均保存实际辅助索引大小。其余七张具备全部基线低预算结果的图以同样的 CPU 46、48 GiB 和五轮协议补测，目录为 output/baselines/20261126-standard-extended，两批完成后严格汇总至 output/baselines/20261126-standard-all/ranking。候选试验与强消融见 [自适应半径](adaptive-radius.md)
+为候选方法对比，固定逻辑 CPU 46 和统一 48 GiB 复测六张代表图。20261126-pilot-matched 首批计时 78 项全部通过；20261126-standard-matched 统一预热及五次批次计时的 78 项、1,059,561 次判定也全部通过，均保存实际辅助索引大小。其余七张以同样的 CPU 46、48 GiB 和五轮协议补测，目录为 output/baselines/20261126-standard-extended，91 项均通过。两批合并为 13 图、169 项配置、2,373,120 次判定，零错答；每项保留实际辅助索引空间和逐条答案。完整严格比较已生成于 output/baselines/20261126-standard-all，主表 performance.tsv、分方法构建与查询回执和排名位于同一目录。候选试验与强消融见 [自适应半径](adaptive-radius.md)
 
 以 web-BerkStan 的 22,850 条正式查询为例，首次批查询耗时约为双向 BFS 0.070 s、gen-k-reach 0.258 s、VCRea+ 0.015 s。后两者构建分别约 10.3 s 与 61.5 s。Pokec 和 LiveJournal 的普通限深 BFS 批查询分别约 964 s 和 1,860 s，而双向 BFS 均约 0.56 s。两图的 gen-k-reach 构建分别约 459 s 与 902 s，批查询约 5.53 s 与 5.40 s。表明双向 BFS 是本查询分布下需要认真对比的在线基线，不能仅凭建表或命中标签推定最终收益
 
@@ -123,8 +123,25 @@ build.json 保存构建状态、完整索引构建时间、有效负载、已分
 正式排名按 [评测标准](evaluation.md) 执行，分别输出逐图各项指标和共同图排名。现有初步非支配数据仍保存在 output/baselines/20261126-complete/pareto/pareto.tsv。当前只生成数据
 
 ```sh
-python3 src/rank_results.py output/baselines/20261126-standard-matched/performance.tsv --strict
+python3 src/report_baselines.py output/baselines/20261126-standard-matched output/baselines/20261126-standard-extended --output output/baselines/20261126-standard-all/performance.tsv
+python3 src/rank_results.py output/baselines/20261126-standard-all/performance.tsv --strict
 ```
+
+13 张共同图的摊销加速及纯查询加速比几何平均如下，详细逐图时间、空间、吞吐及回收查询数见 ranking/metrics.tsv
+
+| 方法 | 百万次查询摊销加速 | 十亿次查询摊销加速 | 纯查询加速 |
+| --- | ---: | ---: | ---: |
+| 双向 BFS | 1.000 | 1.000 | 1.000 |
+| ESTI | 0.167 | 0.179 | 0.179 |
+| VCRea+ | 0.153 | 1.706 | 1.883 |
+| VCRea | 0.141 | 0.880 | 0.912 |
+| K-Reach | 0.134 | 6.429 | 14.012 |
+| Directed PLL | 0.133 | 1.489 | 1.641 |
+| Scalable K-Reach | 0.116 | 0.279 | 0.281 |
+| gen-k-reach | 0.069 | 0.138 | 0.139 |
+| BFS | 0.030 | 0.030 | 0.030 |
+
+在当前混合阈值负载和百万次查询规模下，双向 BFS 的总体时间最低；十亿次查询规模下，完整 K-Reach 的摊销优势明显。该结果适用于 13 张可完成全部方法的共同图，两张压力图的容量和运行指标另行记录。候选方法目前仅与相同协议的六张代表图直接比较
 
 固定 k 比较使用 --fixed-k 2/4/6，所有算法收到同一阈值的冻结子查询。混合 k 的固定阈值方法各档索引构建时间、对应查询批次耗时和辅助索引大小相加，通用阈值方法构建一次。不同指标代表的空间范围与计时协议见评测标准
 
@@ -141,4 +158,4 @@ python3 src/run_stress.py output/baselines/20261126-complete/performance.tsv --o
 
 固定 K-Reach 并行构建使用与单线程相同的覆盖集和距离三档编码，每个线程持有独立 BFS 工作区并只写负责的索引行，按根编号的最终行完全一致。新版通过 69,120 次独立判定及逐行编码比较，Wiki-Vote 的真实冻结请求及完整压力入口也运行通过。Pokec 四跳前 512 根的吞吐核验为单线程 20.42 s、八线程 3.66 s，两者条目、扫描量、负载及行校验相同，见 output/validation/baselines/20261127-kreach-parallel。该前缀只衡量构建吞吐，完整构建仍以最终查询核验为准
 
-output/baselines/20261126-expanded-stress/run.json 保存补跑任务队列，methods/<方法>/<图>/ 下按预算留存原始回执和答案。reviewed_performance.tsv 依据已生成回执复查完成项，区分无回执的已启动、待运行、实际分配失败和严格物理容量下界。LiveJournal 四、六跳当前索引表示已有严格空间不可行证据。Pokec 的 Directed PLL 已在 256 GiB 下完成，构建 10,076.23 s、编码负载 46,092,602,219 bytes、峰值约 63.5 GiB，23,551 条请求零错答；首次批次计时保留。其余可行入队配置需等待真实结果。大内存和八线程构建采用独立排名数据，避免与单线程统一预算下的构建时间直接混排
+output/baselines/20261126-expanded-stress/run.json 保存补跑任务队列，methods/<方法>/<图>/ 下按预算留存原始回执和答案。reviewed_performance.tsv 依据已生成回执复查完成项，区分无回执的已启动、待运行、实际分配失败和严格物理容量下界。LiveJournal 四、六跳当前索引表示已有严格空间不可行证据。Pokec 的 Directed PLL 已在 256 GiB 下完成，构建 10,076.23 s、编码负载 46,092,602,219 bytes、峰值约 63.5 GiB，23,551 条请求零错答；首次批次计时保留。Pokec 的 VCRea+ 亦在 256 GiB 下完成，构建 6,531.36 s、编码负载 40,839,357,802 bytes、分配索引空间 58,624,945,624 bytes、峰值约 56.6 GiB，23,551 条请求零错答，五轮中位批次平均延迟 34.61 µs。其余可行入队配置需等待真实结果。大内存和八线程构建采用独立排名数据，避免与单线程统一预算下的构建时间直接混排
