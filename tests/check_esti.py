@@ -7,12 +7,12 @@ import tempfile
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT/"src"/"baselines"))
 from historical import BUILD, esti
-from esti.build import BUILD as ESTI_CACHE, build
+from esti.build import BINARY as ESTI_BINARY, build
 
 
 def main():
     BUILD.mkdir(parents=True, exist_ok=True)
-    if not (ESTI_CACHE/"esti").exists():
+    if not ESTI_BINARY.exists():
         build()
     rng = random.Random(26112026)
     cases = [(3, [(s,t) for s in range(3) for t in range(3) if mask & (1 << (s*3+t))])

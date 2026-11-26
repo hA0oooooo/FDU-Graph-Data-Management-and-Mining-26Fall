@@ -1,3 +1,4 @@
+#include "../../benchmark_metrics.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -172,6 +173,14 @@ struct Index {
         }
     }
 
+    uint64_t allocated_bytes() const {
+        uint64_t bytes=(out_labels.capacity()+in_labels.capacity())*sizeof(Label)
+            +out_receiver.capacity()+in_receiver.capacity()+order.capacity()*sizeof(int);
+        for(const auto* labels:{&out_labels,&in_labels})
+            for(const auto& row:*labels)bytes+=row.bytes.capacity();
+        return bytes;
+    }
+
     bool labels_within(int s, int t, int k) const {
         if (s == t) return k >= 0;
         if (k < 1) return false;
@@ -219,13 +228,13 @@ int main(int argc, char** argv) {
     auto start = Clock::now();
     Index index(out, in, argv[1], threshold);
     auto built = Clock::now();
-    std::string predictions(queries.size(), '0');
-    auto query_start = Clock::now();
-    for (size_t i = 0; i < queries.size(); ++i) {
-        const auto& q = queries[i];
-        predictions[i] += index.query(q.s,q.t,q.k);
-    }
-    auto end = Clock::now();
+    uint64_t ready=khop_bench::rss_kib();
+    auto timing=khop_bench::measure(queries.size(),[&](size_t i){
+        const auto& q=queries[i];
+        return index.query(q.s,q.t,q.k);
+    });
+    std::string predictions;
+    for(auto value:timing.answers)predictions.push_back('0'+value);
     int64_t bytes = 0, capacity = 0;
     for (const auto* labels : {&index.out_labels, &index.in_labels}) {
         for (const auto& row : *labels) { bytes += row.bytes.size(); capacity += row.bytes.capacity(); }
@@ -237,6 +246,8 @@ int main(int argc, char** argv) {
               << ",\"encoded_bytes\":" << bytes << ",\"vector_capacity_bytes\":" << capacity
               << ",\"build_scans\":" << index.scans << ",\"popped_vertices\":" << index.visited
               << ",\"witnessed_candidates\":" << index.redundant << ",\"build_ns\":" << ns(start,built)
-              << ",\"query_ns\":" << ns(query_start,end) << ",\"process_peak_kib\":" << usage.ru_maxrss
+              << ",\"query_ns\":" << timing.first_ns << ",\"median_query_ns\":" << timing.median_ns
+              << ",\"query_repeats\":" << timing.repeats << ",\"ready_rss_kib\":" << ready
+              << ",\"index_allocated_bytes\":" << index.allocated_bytes() << ",\"process_peak_kib\":" << usage.ru_maxrss
               << ",\"predictions\":\"" << predictions << "\"}\n";
 }

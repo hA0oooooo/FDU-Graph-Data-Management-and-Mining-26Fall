@@ -72,13 +72,13 @@ int main(int argc,char** argv) {
     auto start=Clock::now();
     auto index=packed_index(out,in,argv[1],threads);
     auto built=Clock::now();
-    std::string predictions(queries.size(),'0');
-    auto query_start=Clock::now();
-    for(size_t i=0;i<queries.size();++i) {
+    uint64_t ready=khop_bench::rss_kib();
+    auto timing=khop_bench::measure(queries.size(),[&](size_t i){
         const auto& q=queries[i];
-        predictions[i]+=index.query(q.s,q.t,q.k);
-    }
-    auto end=Clock::now();
+        return index.query(q.s,q.t,q.k);
+    });
+    std::string predictions;
+    for(auto value:timing.answers)predictions.push_back('0'+value);
     int64_t bytes=0,capacity=0;
     for(const auto* labels:{&index.out_labels,&index.in_labels})
         for(const auto& row:*labels){bytes+=row.bytes.size();capacity+=row.bytes.capacity();}
@@ -88,7 +88,9 @@ int main(int argc,char** argv) {
     std::cout<<"{\"hubs\":"<<index.order.size()<<",\"labels\":"<<index.entries
              <<",\"encoded_bytes\":"<<bytes<<",\"vector_capacity_bytes\":"<<capacity
              <<",\"build_scans\":"<<index.scans<<",\"build_ns\":"<<ns(start,built)
-             <<",\"query_ns\":"<<ns(query_start,end)<<",\"process_peak_kib\":"<<usage.ru_maxrss
+             <<",\"query_ns\":"<<timing.first_ns<<",\"median_query_ns\":"<<timing.median_ns
+             <<",\"query_repeats\":"<<timing.repeats<<",\"ready_rss_kib\":"<<ready
+             <<",\"index_allocated_bytes\":"<<index.allocated_bytes()<<",\"process_peak_kib\":"<<usage.ru_maxrss
              <<",\"predictions\":\""<<predictions<<"\",\"builder\":\"packed\",\"build_threads\":"<<threads<<"}\n";
 }
 #endif

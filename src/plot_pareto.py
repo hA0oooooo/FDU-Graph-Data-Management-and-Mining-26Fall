@@ -8,7 +8,11 @@ from pathlib import Path
 
 def number(row, key):
     value=row.get(key)
-    return float(value) if value else None
+    return float(value) if value is not None and value!="" else None
+
+
+def timing(row):
+    return row.get("timing_protocol") or "first_batch",int(row.get("query_repeats") or 0)
 
 
 def points(rows, strict=False):
@@ -25,7 +29,7 @@ def points(rows, strict=False):
             raise ValueError(f"{graph}: duplicate method in comparison")
         if strict:
             keys=("execution_memory_gib","comparison_budget_gib","solver_threads","build_threads","cpu_count","concurrent_configurations")
-            protocols={(r.get("host"),r.get("cpu_affinity"),*(number(r,k) for k in keys)) for r in group if r["status"]=="verified"}
+            protocols={(r.get("host"),r.get("cpu_affinity"),*(number(r,k) for k in keys),*timing(r)) for r in group if r["status"]=="verified"}
             if len(protocols)!=1 or any(v is None or v=="" for v in next(iter(protocols),())):
                 raise ValueError(f"{graph}: verified methods have different or unknown resource settings")
         n=max(int(r["expected"]) for r in group)
@@ -37,27 +41,42 @@ def points(rows, strict=False):
             configs[method].append(row)
         graph_points=[]
         thread_counts={number(r,"build_threads") or 1 for r in group if r["status"]=="verified"}
+        timing_protocols={timing(r) for r in group if r["status"]=="verified"}
+        reference_protocol=next((timing(r) for r in group if r["method"]=="bibfs" and r["status"]=="verified"),None)
         for method, variants in configs.items():
             ready=all(r["status"]=="verified" and number(r,"mismatches")==0 for r in variants) and sum(int(r["checked"]) for r in variants)==n
             base=dict(graph=graph,method=method,queries=n,configurations=len(variants),
                       status="verified" if ready else "incomplete",build_s=None,batch_s=None,mean_us=None,
-                      index_payload_bytes=None,peak_single_process_kib=None,pareto=False)
+                      index_payload_bytes=None,index_allocated_bytes=None,ready_single_process_kib=None,
+                      peak_single_process_kib=None,timing_protocol=None,query_repeats=None,pareto=False)
             if ready:
                 payload=[number(r,"index_payload_bytes") for r in variants]
                 peak=[number(r,"process_peak_kib") for r in variants]
+                allocated=[number(r,"index_allocated_bytes") for r in variants]
+                resident=[number(r,"ready_rss_kib") for r in variants]
                 base.update(build_s=sum(float(r["build_s"]) for r in variants),
                             batch_s=sum(float(r["batch_s"]) for r in variants),
                             index_payload_bytes=sum(payload) if all(v is not None for v in payload) else None,
-                            peak_single_process_kib=max(peak) if all(v is not None for v in peak) else None)
+                            peak_single_process_kib=max(peak) if all(v is not None for v in peak) else None,
+                            index_allocated_bytes=sum(allocated) if all(v is not None for v in allocated) else None,
+                            ready_single_process_kib=max(resident) if all(v is not None for v in resident) else None)
+                protocol,repeats=timing(variants[0])
+                base.update(timing_protocol=protocol,query_repeats=repeats or None)
+                if len({timing(r) for r in variants})!=1:
+                    base["status"]="different_timing_protocol"
                 base["mean_us"]=base["batch_s"]*1e6/n
                 budgets={number(r,"comparison_budget_gib") for r in variants}
+                if len(timing_protocols)>1 and reference_protocol and timing(variants[0])!=reference_protocol:
+                    base["status"]="different_timing_protocol"
                 if len(thread_counts)>1 and any((number(r,"build_threads") or 1)!=min(thread_counts) for r in variants):
                     base["status"]="different_build_threads"
-                if len(budgets)==1 and None not in budgets and base["index_payload_bytes"] is not None:
-                    if base["index_payload_bytes"]>next(iter(budgets))*2**30:
+                persistent=base["index_allocated_bytes"] if base["index_allocated_bytes"] is not None else base["index_payload_bytes"]
+                if len(budgets)==1 and None not in budgets and persistent is not None:
+                    if persistent>next(iter(budgets))*2**30:
                         base["status"]="payload_exceeds_budget"
             else:
-                base["status"]=";".join(sorted({r["status"] for r in variants}))
+                states={r["status"] for r in variants}
+                base["status"]="incomplete" if states=={"verified"} else ";".join(sorted(states))
             graph_points.append(base)
         valid=[p for p in graph_points if p["status"]=="verified"]
         for p in valid:

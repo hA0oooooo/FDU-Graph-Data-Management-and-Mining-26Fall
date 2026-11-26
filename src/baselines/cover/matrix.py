@@ -31,14 +31,14 @@ def main():
     workloads = ROOT / "dataset/workloads"
     graphs = args.graphs or sorted(p.parent.name for p in workloads.glob("*/manifest.json"))
     src = HERE / ("packed_labels.cpp" if args.builder=="packed" else "labels.cpp")
-    src_sha = hash_file(src)
-    flags = ["-O3", "-std=c++17"]
+    sources=[src,ROOT/"src/benchmark_metrics.hpp"]
+    flags=["-O3","-std=c++17"]
     if args.builder=="packed":
-        fingerprint=hashlib.sha256()
-        for path in (src,HERE/"capacity.cpp",HERE/"labels.cpp"):
-            fingerprint.update(path.read_bytes())
-        src_sha=fingerprint.hexdigest()
+        sources.extend((HERE/"capacity.cpp",HERE/"labels.cpp"))
         flags.extend(("-march=native","-fopenmp"))
+    fingerprint=hashlib.sha256()
+    for path in sources:fingerprint.update(path.read_bytes())
+    src_sha=fingerprint.hexdigest()
     cap = args.memory_mib * 1024**2
     compiler = subprocess.check_output(["g++","-dumpfullversion"],text=True).strip()
     with tempfile.TemporaryDirectory() as folder:

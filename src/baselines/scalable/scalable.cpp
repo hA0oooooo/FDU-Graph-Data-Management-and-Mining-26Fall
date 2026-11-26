@@ -1,3 +1,4 @@
+#include "../../benchmark_metrics.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -45,6 +46,16 @@ struct Layer {
     vector<vector<int>> core;
     long long bfs_scans = 0, omitted = 0, endpoint_labels = 0;
     explicit Layer(int n) : rank(n,-1), to_hub(n), from_hub(n) {}
+
+    uint64_t allocated_bytes() const {
+        uint64_t bytes=(rank.capacity()+hubs.capacity())*sizeof(int)
+            +(to_hub.capacity()+from_hub.capacity())*sizeof(vector<Label>)
+            +core.capacity()*sizeof(vector<int>);
+        for(const auto& row:to_hub)bytes+=row.capacity()*sizeof(Label);
+        for(const auto& row:from_hub)bytes+=row.capacity()*sizeof(Label);
+        for(const auto& row:core)bytes+=row.capacity()*sizeof(int);
+        return bytes;
+    }
 
     // Minimum length routed via this layer. Decision queries may stop at any witness.
     int through(int s, int t, int stop) const {
@@ -241,14 +252,19 @@ int main(int argc,char** argv) {
     double build_s=seconds(start);
     long long rem_edges=0;
     for (const auto& row : idx.residual.out) rem_edges+=row.size();
-    vector<char> answers(qs.size());
-    auto query_start=Clock::now();
-    for (size_t i=0;i<qs.size();++i) answers[i]=idx.query(qs[i].s,qs[i].t,qs[i].k);
-    double query_s=seconds(query_start);
+    uint64_t ready=khop_bench::rss_kib();
+    auto timing=khop_bench::measure(qs.size(),[&](size_t i){
+        return idx.query(qs[i].s,qs[i].t,qs[i].k);
+    });
+    const auto& answers=timing.answers;
+    double query_s=timing.first_ns/1e9;
     std::ofstream output(argv[7]);
     for (char ans : answers) output<<int(ans)<<'\n';
     if (!output) throw std::runtime_error("cannot write answers");
     std::cout << "{\"build_s\":" << build_s << ",\"queries_s\":" << query_s << ",\"n_queries\":" << qs.size()
+              << ",\"median_queries_s\":" << timing.median_ns/1e9
+              << ",\"query_repeats\":" << timing.repeats << ",\"ready_rss_kib\":" << ready
+              << ",\"index_allocated_bytes\":" << idx.first.allocated_bytes()+idx.second.allocated_bytes()
               << ",\"d2_lowered\":" << idx.lowered << ",\"d2_added\":" << idx.added
               << ",\"residual_vertices\":" << n-idx.first.hubs.size()-idx.second.hubs.size()
               << ",\"residual_edges\":" << rem_edges << ",";

@@ -11,7 +11,7 @@ import sys
 import tempfile
 from time import monotonic
 
-from esti.build import BUILD as ESTI_CACHE, build
+from esti.build import BUILD as ESTI_CACHE, BINARY as ESTI_BINARY, ensure_built
 from esti.build_capacity import expanded
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,7 +20,7 @@ from workload import workload_spec
 
 BUILD = ROOT / "cache/historical"
 FIELDS = ("k roots entries build_bfs_edge_scans build_ns process_peak_kib queries positives "
-          "mismatches first_batch_ns median_batch_ns both_core source_core target_core neither_core index_bytes").split()
+          "mismatches first_batch_ns median_batch_ns both_core source_core target_core neither_core index_bytes query_repeats ready_rss_kib index_allocated_bytes").split()
 
 
 def cap(memory_gib):
@@ -51,7 +51,7 @@ def run_limited(command, work, seconds, memory_gib, progress=None):
 
 def compiled(source, name):
     dest = BUILD / name
-    if not dest.exists() or dest.stat().st_mtime_ns < source.stat().st_mtime_ns:
+    if not dest.exists() or dest.stat().st_mtime_ns < max(source.stat().st_mtime_ns,(ROOT/"src/benchmark_metrics.hpp").stat().st_mtime_ns):
         with tempfile.TemporaryDirectory(dir=BUILD) as folder:
             binary = Path(folder) / name
             subprocess.run(["g++", "-O3", "-std=c++17", source, "-o", binary], check=True)
@@ -63,9 +63,8 @@ def esti(n, m, edges, rows, work, adapted=False, memory_gib=48, answer_path=None
     if n >= 30000000 or (not adapted and m+n > 60000000):
         return dict(status="exceeds_upstream_capacity", vertex_slots=30000000, edge_slots=60000000)
     writer = compiled(ROOT / "src/baselines/esti/convert.cpp", "esti_format")
-    binary = ESTI_CACHE / "esti"
-    if not binary.exists():
-        build()
+    binary = ESTI_BINARY
+    ensure_built()
     if adapted:
         # The author adds up to n edges from a virtual root after reading m input edges.
         binary = expanded(m+n+1)
@@ -84,8 +83,12 @@ def esti(n, m, edges, rows, work, adapted=False, memory_gib=48, answer_path=None
     rec.update(queries=len(rows), mismatches=sum((x=="1") != (0<=d<=k)
                for x, (_, _, k, d) in zip(answers, rows)),
                build_ms=float(re.search(r"construction time: ([\d.]+) ms", p.stdout)[1]),
-               batch_ms=float(re.search(r"query time: ([\d.]+) ms", p.stdout)[1]),
+               batch_ms=float(re.search(r"^query time: ([\d.]+) ms", p.stdout,re.M)[1]),
                index_bytes=int(re.search(r"index size: (\d+) bytes", p.stdout)[1]),
+               index_allocated_bytes=int(re.search(r"allocated index bytes: (\d+)", p.stdout)[1]),
+               ready_rss_kib=int(re.search(r"ready rss: (\d+) KiB", p.stdout)[1]),
+               median_batch_ms=float(re.search(r"median query time: ([\d.]+) ms", p.stdout)[1]),
+               query_repeats=int(re.search(r"query repeats: (\d+)", p.stdout)[1]),
                process_peak_kib=int((work / "peak-kib.txt").read_text().strip()))
     if answer_path is not None:
         answer_path.write_text("answer\n"+"\n".join(answers)+"\n")

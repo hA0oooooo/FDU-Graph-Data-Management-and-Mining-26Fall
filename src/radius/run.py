@@ -27,7 +27,7 @@ def digest(path):
 def compile_tool(name):
     source = HERE / (name + ".cpp")
     binary = BUILD / name
-    headers = list((ROOT / "src/radius").glob("*.hpp"))
+    headers = list((ROOT / "src/radius").glob("*.hpp")) + [ROOT/"src/benchmark_metrics.hpp"]
     BUILD.mkdir(parents=True, exist_ok=True)
     if not binary.exists() or any(p.stat().st_mtime_ns > binary.stat().st_mtime_ns for p in [source, *headers]):
         with tempfile.TemporaryDirectory(dir=BUILD) as tmp:
@@ -88,7 +88,9 @@ def export_comparison(dest, metadata):
         answers=[r["answer"] for r in read_rows(dest/"methods"/name/"answers.tsv")]
         if n!=metadata["queries"] or int(measured["mismatches"]) or answers!=truth:
             raise ValueError("candidate comparison is incomplete or incorrect")
-        batch_s=int(measured["batch_ns"])/1e9
+        first_s=int(measured["batch_ns"])/1e9
+        batch_s=int(measured.get("median_batch_ns",measured["batch_ns"]))/1e9
+        repeats=int(measured["query_repeats"]) if measured.get("query_repeats") else None
         build_s=sum(float(b[key]) for key in ("root_ms","profile_ms","training_ms","choose_ms","build_ms"))/1000
         label_bytes=int(b["table_bytes"])
         method={"uniform":"uniform-h","structural":"adaptive-structural-h","workload":"adaptive-workload-h","uniform-active":"uniform-active-h"}[name]
@@ -97,7 +99,9 @@ def export_comparison(dest, metadata):
         scans=median(int(r["scans"]) for r in trial)
         certificates=median(int(r["upper"])+int(r["lower"]) for r in trial)
         row=dict(graph=metadata["graph"],method=method,status="verified",expected=n,checked=n,mismatches=0,
-                 build_s=build_s,batch_s=batch_s,mean_us=batch_s*1e6/n,index_payload_bytes=label_bytes,
+                 build_s=build_s,batch_s=batch_s,first_batch_s=first_s,mean_us=batch_s*1e6/n,
+                 query_repeats=repeats,timing_protocol="warmup_median" if repeats else "first_batch",
+                 index_payload_bytes=label_bytes,index_allocated_bytes=label_bytes,ready_rss_kib=None,
                  process_peak_kib=None,query_sha256=metadata["query_sha256"],graph_sha256=metadata["graph_sha256"],
                  receipt="comparison.tsv",answers=f"methods/{name}/answers.tsv",
                  execution_memory_gib=metadata["memory_gib"],comparison_budget_gib=metadata["memory_gib"],
@@ -105,7 +109,8 @@ def export_comparison(dest, metadata):
                  cpu_count=metadata["cpu_count"],concurrent_configurations=1,
                  label_budget_multiple=metadata["label_budget_multiple"],retained_labels=int(b["labels"]),
                  median_query_us=latency,bibfs_median_query_us=reference,median_speedup=reference/latency,
-                 median_scans=scans,certificate_fraction=certificates/n,shared_peak_kib=int((dest/"peak_kib.txt").read_text()))
+                 median_scans=scans,certificate_fraction=certificates/n,shared_peak_kib=int((dest/"peak_kib.txt").read_text()),
+                 shared_ready_rss_kib=int(measured["shared_ready_rss_kib"]) if measured.get("shared_ready_rss_kib") else None)
         rows.append(row)
         target=dest/"methods"/name
         (target/"build.json").write_text(json.dumps(dict(b,build_s=build_s,metadata=metadata),indent=2)+"\n")
@@ -125,6 +130,7 @@ def main():
     ap.add_argument("--query-name", choices=QUERY_FILES, default="test.tsv")
     ap.add_argument("--active-uniform", action="store_true", help="compare workload-selected roots with a shared nonzero radius")
     ap.add_argument("--label-budget-multiple", type=int, default=4, help="retained-label budget as a multiple of |V|")
+    ap.add_argument("--query-repeats", type=int, default=5)
     ap.add_argument("--memory-gib", type=int, default=48)
     ap.add_argument("--cpu-count", type=int, default=1)
     ap.add_argument("--output", type=Path, help="measurement directory; defaults to output/adaptive-radius/<graph>")
@@ -157,10 +163,11 @@ def main():
         dest = dest / "active-uniform"
     dest.mkdir(parents=True, exist_ok=True)
     available=sorted(os.sched_getaffinity(0))
-    if not 1<=a.cpu_count<=len(available) or a.memory_gib<1 or a.label_budget_multiple<1:
+    if not 1<=a.cpu_count<=len(available) or a.memory_gib<1 or a.label_budget_multiple<1 or a.query_repeats<1:
         ap.error("choose positive memory and an available CPU count")
     cpus=available[:a.cpu_count]
     os.sched_setaffinity(0,cpus)
+    os.environ["KHOP_QUERY_REPEATS"]=str(a.query_repeats)
     query=work/a.query_name
     query_hash=digest(query)
     if a.fixed_k is not None:
@@ -170,13 +177,13 @@ def main():
         count=len(read_rows(query))
     metadata=dict(graph=a.graph, graph_sha256=manifest["graph_sha256"], query_sha256=query_hash,
                   query_name=a.query_name,fixed_k=a.fixed_k,queries=count,memory_gib=a.memory_gib,
-                  label_budget_multiple=a.label_budget_multiple,active_uniform=a.active_uniform,
+                  label_budget_multiple=a.label_budget_multiple,active_uniform=a.active_uniform,query_repeats=a.query_repeats,
                   comparison_budget_gib=a.memory_gib,execution_memory_gib=a.memory_gib,
                   cpu_affinity=cpus,cpu_count=len(cpus),solver_threads=1,concurrent_configurations=1,
                   host=socket.gethostname())
     binary = compile_tool("measure")
     fingerprint=hashlib.sha256()
-    for path in sorted([HERE/"measure.cpp",HERE/"index.hpp",HERE/"graph.hpp",HERE/"run.py"]):
+    for path in sorted([HERE/"measure.cpp",HERE/"index.hpp",HERE/"graph.hpp",HERE/"run.py",ROOT/"src/benchmark_metrics.hpp"]):
         fingerprint.update(path.name.encode())
         fingerprint.update(path.read_bytes())
     metadata.update(source_sha256=fingerprint.hexdigest(),binary_sha256=digest(binary),

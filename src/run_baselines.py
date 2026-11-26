@@ -9,7 +9,7 @@ import socket
 import subprocess
 import sys
 
-from baselines.esti.build import BUILD as ESTI_CACHE, build as build_esti
+from baselines.esti.build import ensure_built as build_esti
 from radius.run import ROOT, WORKLOADS, compile_tool, digest, read_rows
 from workload import QUERY_FILES, fixed_queries, workload_spec
 
@@ -66,11 +66,16 @@ def run_family(graph, spec, family, output, search, args):
             result = target / "search.tsv"
             if result.exists() and len(read_rows(result)) == 2:
                 return
-            with result.open("w") as data:
-                memory=args.memory_gib*2**30
-                subprocess.run(["prlimit",f"--as={memory}:{memory}","--","/usr/bin/time","-f","%M",
-                                "-o",target/"peak-kib.txt",search,str(nodes),edges,queries,answers],
-                               stdout=data,stderr=log,check=True)
+            memory=args.memory_gib*2**30
+            pieces=[]
+            for method in ("bfs","bibfs"):
+                piece=target/(method+".tsv")
+                with piece.open("w") as data:
+                    subprocess.run(["prlimit",f"--as={memory}:{memory}","--","/usr/bin/time","-f","%M",
+                                    "-o",target/(method+".peak-kib.txt"),search,str(nodes),edges,queries,answers,method],
+                                   stdout=data,stderr=log,check=True)
+                pieces.append(piece.read_text().splitlines())
+            result.write_text("\n".join(pieces[0]+pieces[1][1:])+"\n")
         elif family == "scalable":
             result = target / "scalable.json"
             if result.exists() and len(read_json(result)["runs"]) == thresholds+1:
@@ -122,6 +127,7 @@ def main():
     parser.add_argument("--query-name", choices=QUERY_FILES, default="benchmark.tsv")
     parser.add_argument("--b", type=int, default=1000)
     parser.add_argument("--d2-cap", type=int, default=128)
+    parser.add_argument("--query-repeats", type=int, default=5)
     parser.add_argument("--memory-gib", type=int, default=48)
     parser.add_argument("--kreach-memory-gib", type=int, help="optional separate diagnostic limit")
     parser.add_argument("--cpu-count", type=int, help="logical CPUs; default 1 for serial, up to 72 for parallel runs")
@@ -137,8 +143,8 @@ def main():
         return
     if not args.graphs or set(args.graphs) - (graphs.keys() | {"all"}):
         parser.error("choose all or one of " + ", ".join(sorted(graphs)))
-    if args.jobs < 1:
-        parser.error("--jobs must be positive")
+    if args.jobs < 1 or args.query_repeats<1:
+        parser.error("--jobs and --query-repeats must be positive")
     if args.memory_gib<1 or (args.kreach_memory_gib is not None and args.kreach_memory_gib<1):
         parser.error("memory limits must be positive")
     args.kreach_memory_gib=args.kreach_memory_gib or args.memory_gib
@@ -148,6 +154,7 @@ def main():
         parser.error("choose an available CPU count at least as large as --jobs")
     cpus=available[:args.cpu_count]
     os.sched_setaffinity(0,cpus)
+    os.environ["KHOP_QUERY_REPEATS"]=str(args.query_repeats)
     selected = (sorted(graphs, key=lambda name: (graphs[name]["edges"], name))
                 if "all" in args.graphs else list(dict.fromkeys(args.graphs)))
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -166,7 +173,7 @@ def main():
                     query_name=args.query_name, b=args.b, d2_cap=args.d2_cap,
                     memory_gib=args.memory_gib, kreach_memory_gib=args.kreach_memory_gib, timeout=None,
                     comparison_budget_gib=args.memory_gib, layout="method",
-                    cpu_affinity=cpus, solver_threads=1, fixed_k=args.fixed_k)
+                    cpu_affinity=cpus, solver_threads=1, fixed_k=args.fixed_k,query_repeats=args.query_repeats)
     run_file = output / "run.json"
     if args.resume:
         prior = read_json(run_file)
@@ -184,8 +191,7 @@ def main():
             subprocess.run([sys.executable, ROOT/"src/prepare_benchmark.py",graph],check=True)
         if args.fixed_k is not None:
             fixed_input(output,graph,graphs[graph],args.query_name,args.fixed_k)
-    if not (ESTI_CACHE / "esti").exists():
-        build_esti()
+    build_esti()
     search = compile_tool("search")
     # Finish online and partial-index families before expensive full-cover builds.
     import fcntl

@@ -1,4 +1,5 @@
 #include "index.hpp"
+#include "../benchmark_metrics.hpp"
 #include <chrono>
 #include <filesystem>
 #include <iomanip>
@@ -168,23 +169,23 @@ int main(int argc,char** argv) {
     p.clear(); p.shrink_to_fit();
     // The test split is first opened after every configuration has been chosen.
     auto test=load_queries(data/test_file,g.n,fixed_k);
+    uint64_t shared_ready=khop_bench::rss_kib();
     std::ofstream comparison(dest/"comparison.tsv");
-    comparison<<"method\tqueries\tmismatches\tbatch_ns\n";
+    comparison<<"method\tqueries\tmismatches\tbatch_ns\tmedian_batch_ns\tquery_repeats\tshared_ready_rss_kib\n";
     for (auto& method:methods) {
-        std::vector<char> answers(test.size());
-        auto tick=Clock::now();
-        for(size_t i=0;i<test.size();++i)
-            answers[i]=method.index.query(g,search,test[i]).yes;
-        auto elapsed=std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now()-tick).count();
+        auto timing=khop_bench::measure(test.size(),[&](size_t i){
+            return method.index.query(g,search,test[i]).yes;
+        });
         Count errors=0;
         for(size_t i=0;i<test.size();++i)
-            errors+=bool(answers[i])!=(test[i].d>=0 && test[i].d<=test[i].k);
+            errors+=bool(timing.answers[i])!=(test[i].d>=0 && test[i].d<=test[i].k);
         Path folder=dest/"methods"/method.name;
         std::filesystem::create_directories(folder);
         std::ofstream stream(folder/"answers.tsv");
         stream<<"answer\n";
-        for(char answer:answers)stream<<int(answer)<<'\n';
-        comparison<<method.name<<'\t'<<test.size()<<'\t'<<errors<<'\t'<<elapsed<<'\n';
+        for(auto answer:timing.answers)stream<<int(answer)<<'\n';
+        comparison<<method.name<<'\t'<<test.size()<<'\t'<<errors<<'\t'<<timing.first_ns
+                  <<'\t'<<timing.median_ns<<'\t'<<timing.repeats<<'\t'<<shared_ready<<'\n';
         if(errors)throw std::runtime_error("comparison batch mismatches");
     }
     std::ofstream repeats(dest/"repeats.tsv");

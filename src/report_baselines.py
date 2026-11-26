@@ -103,6 +103,19 @@ def records(run_dir, graph, config):
         fixed=int(name.rsplit("-",1)[1]) if name.startswith(("scalable-","kreach-")) else None
         n=counts[fixed] if fixed is not None else expected
         valid=status in ("passed","verified","ok")
+        first_batch=query
+        repeats=int(row["query_repeats"]) if row.get("query_repeats") else None
+        if valid and config.get("query_repeats") and repeats!=config["query_repeats"]:
+            raise ValueError(f"{name}: query repetition protocol differs")
+        if valid and repeats:
+            medians=[float(row[key])*scale for key,scale in
+                     (("median_batch_ms",1e-3),("median_batch_ns",1e-9),
+                      ("median_queries_s",1),("median_query_ns",1e-9)) if key in row]
+            if len(medians)!=1:
+                raise ValueError(f"{name}: missing or ambiguous median batch")
+            query=medians[0]
+        allocated=row.get("index_allocated_bytes",0 if name in ("bfs","bibfs") else None)
+        ready_rss=row.get("ready_rss_kib")
         answer_path=None
         if valid and source:
             candidate=source.with_suffix(".answers.tsv") if name in ("vcrea","vcrea-plus","pll") else source.parent/"answers"/(name+".tsv")
@@ -116,8 +129,11 @@ def records(run_dir, graph, config):
              status=("verified" if checked==n and errors==0 else "invalid") if valid else status,
              expected=n, checked=checked if valid else None, mismatches=errors if valid else None,
              build_s=build if valid else None, batch_s=query if valid else None,
+             first_batch_s=first_batch if valid else None,query_repeats=repeats if valid else None,
+             timing_protocol=("warmup_median" if repeats else "first_batch") if valid else None,
              mean_us=query*1e6/n if valid and query is not None else None,
-             index_payload_bytes=size if valid else None, process_peak_kib=rss if valid else None,
+             index_payload_bytes=size if valid else None,index_allocated_bytes=int(allocated) if valid and allocated is not None else None,
+             ready_rss_kib=int(ready_rss) if valid and ready_rss is not None else None,process_peak_kib=rss if valid else None,
              query_sha256=query_hash, graph_sha256=edge_hash,
              receipt=str(source.relative_to(run_dir)) if source else None,
              answers=answer_path, builder=builder, build_threads=build_threads, execution_memory_gib=limit,
@@ -131,8 +147,10 @@ def records(run_dir, graph, config):
     if search.exists():
         peak=search.parent/"peak-kib.txt"
         for r in read_rows(search):
+            separate=search.parent/(r["method"]+".peak-kib.txt")
+            rss=separate if separate.exists() else peak
             item(r["method"],r,"verified",int(r["queries"]),int(r["mismatches"]),0,
-                 float(r["batch_ms"])/1000,0,int(peak.read_text()) if peak.exists() else None,
+                 float(r["batch_ms"])/1000,0,int(rss.read_text()) if rss.exists() else None,
                  source=search,limit=config.get("memory_gib") if method_layout else None)
     historical = dest("esti")/"historical.json"
     files = [historical] if historical.exists() else [dest("esti")/"esti.json",dest("kreach")/"kreach.json"]
@@ -243,10 +261,12 @@ def write_method_results(output, rows, source_runs=None):
                                    "comparison_budget_gib","solver_threads","host","cpu_affinity","cpu_count","concurrent_configurations")}
         identity["raw_receipt"]=str(raw.resolve()) if raw else None
         build=dict(identity,status=row["status"],build_s=row["build_s"],
-                   index_payload_bytes=row["index_payload_bytes"],process_peak_kib=row["process_peak_kib"])
+                   index_payload_bytes=row["index_payload_bytes"],index_allocated_bytes=row["index_allocated_bytes"],
+                   ready_rss_kib=row["ready_rss_kib"],process_peak_kib=row["process_peak_kib"])
         query=dict(identity,status="verified" if row["status"]=="verified" else "not_run",
                    expected=row["expected"],checked=row["checked"],mismatches=row["mismatches"],
-                   batch_s=row["batch_s"],mean_us=row["mean_us"],
+                   batch_s=row["batch_s"],first_batch_s=row["first_batch_s"],mean_us=row["mean_us"],
+                   query_repeats=row["query_repeats"],timing_protocol=row["timing_protocol"],
                    answers="answers.tsv" if answer else None)
         if answer:
             path=target/"answers.tsv"
@@ -277,7 +297,7 @@ def main():
         config=load(run/"run.json")
         source_runs[run.name]=run
         common=tuple(config.get(k) for k in
-            ("host","compiler","query_name","b","d2_cap","memory_gib","kreach_memory_gib","timeout","fixed_k","cpu_affinity","solver_threads"))
+            ("host","compiler","query_name","b","d2_cap","memory_gib","kreach_memory_gib","timeout","fixed_k","cpu_affinity","solver_threads","query_repeats"))
         if protocol is None:
             protocol=common
         elif common!=protocol:

@@ -41,7 +41,8 @@ def main():
     compiler = subprocess.check_output(["g++","-dumpfullversion"],text=True).strip()
     result = dict(graph=args.graph.name, graph_sha256=sha(args.graph), nodes=args.nodes,
                   workload=args.queries.name, workload_sha256=sha(args.queries),
-                  source_sha256=sha(HERE/"scalable.cpp"), compiler=compiler,
+                  source_sha256=hashlib.sha256((HERE/"scalable.cpp").read_bytes()+
+                       (HERE.parents[1]/"benchmark_metrics.hpp").read_bytes()).hexdigest(), compiler=compiler,
                   b=args.b, d2_cap=args.d2_cap, timeout_each_s=args.timeout,
                   address_space_gib=args.memory_gib, runs=[])
     with tempfile.TemporaryDirectory() as tmp:

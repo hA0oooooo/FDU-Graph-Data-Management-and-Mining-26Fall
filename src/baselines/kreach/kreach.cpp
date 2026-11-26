@@ -1,3 +1,4 @@
+#include "../../benchmark_metrics.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -158,38 +159,31 @@ int main(int argc, char** argv) {
     const auto start = Clock::now();
     KReach index(out, in, k);
     const auto build_ns = std::chrono::duration_cast<Nanoseconds>(Clock::now() - start).count();
-    std::vector<uint8_t> answers(queries.size());
-    std::vector<long long> batch_ns;
+    uint64_t ready=khop_bench::rss_kib();
     int errors = 0, positives = 0, cases[4] = {};
     for (const auto& q : queries) {
         ++cases[2 * !index.covered[q.s] + !index.covered[q.t]];
         positives += q.truth;
     }
-    for (int rep = 0; rep < 7; ++rep) {
-        const auto begin = Clock::now();
-        for (size_t i = 0; i < queries.size(); ++i) {
-            answers[i] = index.query(queries[i].s, queries[i].t);
-        }
-        batch_ns.push_back(std::chrono::duration_cast<Nanoseconds>(Clock::now() - begin).count());
-        int mismatches = 0;
-        for (size_t i = 0; i < queries.size(); ++i)
-            mismatches += answers[i] != queries[i].truth;
-        errors = std::max(errors, mismatches);
-    }
+    auto timing=khop_bench::measure(queries.size(),[&](size_t i){
+        return index.query(queries[i].s,queries[i].t);
+    });
+    const auto& answers=timing.answers;
+    for(size_t i=0;i<queries.size();++i)errors+=answers[i]!=queries[i].truth;
     if (argc==6) {
         std::ofstream file(argv[5]);
         file<<"answer\n";
         for(uint8_t answer:answers) file<<int(answer)<<'\n';
     }
-    const auto first_ns = batch_ns.front();
-    std::sort(batch_ns.begin(), batch_ns.end());
+    uint64_t allocated=index.index_bytes+index.rows.capacity()*sizeof(CoreRow)
+        +index.rank.capacity()*sizeof(int)+(index.covered.capacity()+7)/8;
     rusage usage{};
     getrusage(RUSAGE_SELF, &usage);
     std::cout << k << '\t' << index.roots << '\t' << index.entries << '\t'
               << index.bfs_scans << '\t' << build_ns << '\t' << usage.ru_maxrss << '\t'
               << queries.size() << '\t' << positives << '\t' << errors << '\t'
-              << first_ns << '\t' << batch_ns[3];
+              << timing.first_ns << '\t' << timing.median_ns;
     for (int count : cases) std::cout << '\t' << count;
-    std::cout << '\t' << index.index_bytes << '\n';
+    std::cout << '\t' << index.index_bytes << '\t' << timing.repeats << '\t' << ready << '\t' << allocated << '\n';
     return errors ? 1 : 0;
 }

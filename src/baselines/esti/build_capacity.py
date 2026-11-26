@@ -4,14 +4,15 @@ import shutil
 import subprocess
 import tempfile
 
-from .build import BUILD, REV, build
+from .build import BUILD, REV, INCLUDE, BINARY, build, ensure_built
 
 
 def expanded(edge_slots):
     original = BUILD / ("ESTI-" + REV)
-    if not (original / "ESTI/ESTI-observed.cpp").exists():
+    ensure_built()
+    if not (original/"ESTI/ESTI-batch-observed.cpp").exists():
         build()
-    dest = BUILD / ("esti-edges-" + str(edge_slots))
+    dest = BUILD / ("esti-batch-edges-" + str(edge_slots))
     with tempfile.TemporaryDirectory(dir=BUILD) as folder:
         root = Path(folder)
         shutil.copytree(original / "ESTI", root / "ESTI")
@@ -20,6 +21,6 @@ def expanded(edge_slots):
         if header.count(definition) != 1:
             raise ValueError("upstream edge-capacity definition differs")
         (root / "common.h").write_text(header.replace(definition, f"#define maxm {edge_slots}"))
-        subprocess.run(["g++", "-std=c++11", "-O3", "-m64", root / "ESTI/ESTI-observed.cpp",
+        subprocess.run(["g++", "-std=c++11", "-O3", "-m64", "-I", INCLUDE, root / "ESTI/ESTI-batch-observed.cpp",
                         "-o", dest], check=True)
     return dest
