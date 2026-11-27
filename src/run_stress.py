@@ -11,6 +11,7 @@ import time
 
 from radius.run import ROOT, WORKLOADS, digest, read_rows
 from workload import workload_spec
+from baseline_coverage import write as write_coverage
 
 
 def load(path):
@@ -125,14 +126,14 @@ def run_attempt(root, graph, method, gib, spec, cpus, build_threads, query_name,
         answers=receipt.with_suffix(".answers.tsv")
     if hashes!=(manifest["graph_sha256"],query["sha256"]):
         raise ValueError(f"{receipt}: input hashes differ")
-    valid=status in ("ok","passed","verified") and checked==expected and errors==0
-    if valid and answers.exists():
+    valid=status in ("ok","passed","verified") and checked==expected and errors==0 and answers.is_file()
+    if valid:
         truth=[str(int(0<=int(q["d"])<=int(q["k"]))) for q in read_rows(query_path)
                if not method.startswith("kreach-") or int(q["k"])==k]
         predictions=[a["answer"] for a in read_rows(answers)]
         valid=predictions==truth
     if status in ("ok","passed","verified"):
-        status="verified" if valid else "mismatch"
+        status="verified" if valid else "missing_answers" if not answers.is_file() else "mismatch"
     row=dict(graph=graph,method=method,status=status,expected=expected,
              checked=checked if valid else None,mismatches=errors if valid else None,
              build_s=build/1e9 if valid else None,batch_s=query_ns/1e9 if valid else None,
@@ -202,6 +203,9 @@ def review_run(root, meta):
         results.append(row)
     write_table(root/"reviewed_performance.tsv",results)
     write_table(root/"reviewed_attempts.tsv",attempts)
+    if (root.name=="pressure" and (root.parent/"performance.tsv").exists()
+            and (root.parent/"historical/performance.tsv").exists()):
+        write_coverage(root.parent)
     print(dict(Counter(r["status"] for r in results)))
 
 
@@ -264,6 +268,7 @@ def main():
                 raise RuntimeError(f"unexpected stress status: {row}")
         results.append(row)
         write_table(args.output/"performance.tsv",results)
+        review_run(args.output,meta)
     print("expanded stress attempts complete",flush=True)
 
 
