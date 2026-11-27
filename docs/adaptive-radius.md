@@ -89,18 +89,18 @@ Wiki-Vote 的自适应配置实际激活三个关键点，正反半径分别为 
 
 ```sh
 python3 src/radius/run.py --graph wiki-Vote --nodes 7115 --query-name benchmark.tsv --active-uniform --label-budget-multiple 4
-python3 src/radius/summarize.py output/adaptive-radius/20261126-pilot --baseline output/baselines/20261126-pilot-matched/performance.tsv
-python3 src/radius/summarize.py output/adaptive-radius/20261126-active-ablation --baseline output/baselines/20261126-pilot-matched/performance.tsv
+python3 src/radius/summarize.py output/adaptive-radius/pilot --baseline output/baselines/pilot/performance.tsv
+python3 src/radius/summarize.py output/adaptive-radius/ablation --baseline output/baselines/pilot/performance.tsv
 ```
 
 数据保存在 baojian 的以下本地目录
 
-- output/adaptive-radius/20261126-pilot：初试、1n/4n/8n 预算及固定阈值记录
-- output/adaptive-radius/20261126-active-ablation：同预算强统一半径消融，每个配置有 build.tsv、repeats.tsv、comparison.tsv、逐条答案和 performance.tsv
-- output/baselines/20261126-pilot-matched：六图、同一 CPU 和内存的历史基线复测
+- output/adaptive-radius/pilot：初试、1n/4n/8n 预算及固定阈值记录
+- output/adaptive-radius/ablation：同预算强统一半径消融，每个配置有 build.tsv、repeats.tsv、comparison.tsv、逐条答案和 performance.tsv
+- output/baselines/pilot：六图、同一 CPU 和内存的历史基线复测
 - 每组试验的 summary.tsv 汇总构建、查询、标签数、证书命中比例和估算回收查询数；matched_performance.tsv 按图和查询哈希关联两类结果，matched_pareto_data.tsv 只保留对比数据。全零索引候选仍保留原始耗时，在非支配数据计算中标为 no_active_index
 
-- output/baselines/20261126-standard-matched：六图按统一五轮批次计时的基线结果
-- output/adaptive-radius/20261126-standard-metrics：六图的原型复测，summary.tsv、matched_performance.tsv 与 ranking/metrics.tsv、ranking/aggregate.tsv
+- output/baselines/standard-small：六图按统一五轮批次计时的基线结果
+- output/adaptive-radius/main：六图的原型复测，summary.tsv、matched_performance.tsv 与 ranking/metrics.tsv、ranking/aggregate.tsv
 
 初步数据和日志留在本地，不同步 Git

@@ -1,7 +1,6 @@
 """Run the historical baselines on the frozen common queries."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -123,7 +122,7 @@ def main():
     parser.add_argument("graphs", nargs="*", metavar="GRAPH",
                         help="graph names or all")
     parser.add_argument("--review", type=Path, help="check and rebuild coverage.tsv from an existing run")
-    parser.add_argument("--output", type=Path, help="new run directory under output/baselines/")
+    parser.add_argument("--output", type=Path, help="named run directory; defaults to output/baselines/runs/<graph>-<workload>[-kN]")
     parser.add_argument("--query-name", choices=QUERY_FILES, default="benchmark.tsv")
     parser.add_argument("--b", type=int, default=1000)
     parser.add_argument("--d2-cap", type=int, default=128)
@@ -157,8 +156,11 @@ def main():
     os.environ["KHOP_QUERY_REPEATS"]=str(args.query_repeats)
     selected = (sorted(graphs, key=lambda name: (graphs[name]["edges"], name))
                 if "all" in args.graphs else list(dict.fromkeys(args.graphs)))
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output = (args.output or ROOT / "output/baselines" / stamp).resolve()
+    group = "all" if "all" in args.graphs else selected[0] if len(selected)==1 else "selected"
+    run_name = f"{group}-{Path(args.query_name).stem}"
+    if args.fixed_k is not None:
+        run_name += f"-k{args.fixed_k}"
+    output = (args.output or ROOT / "output/baselines/runs" / run_name).resolve()
     output.mkdir(parents=True, exist_ok=args.resume)
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     import hashlib
@@ -168,7 +170,7 @@ def main():
             source_hash.update(str(path.relative_to(ROOT)).encode())
             source_hash.update(path.read_bytes())
     compiler = subprocess.check_output(["g++", "-dumpfullversion"], text=True).strip()
-    metadata = dict(graphs=selected, timestamp=stamp, host=socket.gethostname(),
+    metadata = dict(graphs=selected, host=socket.gethostname(),
                     jobs=args.jobs, git_revision=revision, source_sha256=source_hash.hexdigest(), compiler=compiler,
                     query_name=args.query_name, b=args.b, d2_cap=args.d2_cap,
                     memory_gib=args.memory_gib, kreach_memory_gib=args.kreach_memory_gib, timeout=None,
@@ -177,7 +179,7 @@ def main():
     run_file = output / "run.json"
     if args.resume:
         prior = read_json(run_file)
-        if any(prior.get(key)!=value for key,value in metadata.items() if key not in ("timestamp","jobs","git_revision")):
+        if any(prior.get(key)!=value for key,value in metadata.items() if key not in ("jobs","git_revision")):
             raise ValueError("resume requires the same run configuration")
     else:
         run_file.write_text(json.dumps(metadata, indent=2)+"\n")
