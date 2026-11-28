@@ -54,7 +54,7 @@ baojian（xsuper）有 48 个物理核、96 个逻辑 CPU、503 GiB RAM。默认
 | Pokec | 144.60 | 311.10 |
 | LiveJournal1 | 586.23（最初下界 245.48） | 1793.37 |
 
-两图 $k=4$ 均已在 96 GiB 地址空间下触发实际分配失败。$k=6$ 的下界严格超过该预算，保存已建前缀、取消信号及证据，记为 `capacity_proved`。这些下界针对当前确定的覆盖集和行编码。LiveJournal 的四跳、六跳下界均超过该服务器的 503 GiB RAM。Pokec 的四跳和六跳完整索引继续提高预算构建，均有约 333.31 GiB 的负载上界。K-Reach 证据表及决策回执位于 `output/baselines/historical/kreach-capacity.tsv` 和原运行目录中的 `capacity_decisions.json`
+两图 $k=4$ 均已在 96 GiB 地址空间下触发实际分配失败。$k=6$ 的下界严格超过该预算，保存已建前缀、取消信号及证据，记为 `capacity_proved`。这些下界针对当前确定的覆盖集和行编码。LiveJournal 的四跳、六跳下界均超过该服务器的 503 GiB RAM。Pokec 的四跳和六跳完整索引均有约 333.31 GiB 的负载上界，已在 384 GiB 预算下分别完成构建与查询验证。K-Reach 证据表及决策回执位于 `output/baselines/historical/kreach-capacity.tsv` 和原运行目录中的 `capacity_decisions.json`
 
 进一步将目标覆盖集 $C$ 按距 512 个高入出度乘积见证点的最近正向距离划为互不重叠的子集 $P_i$。对于源点 $u$，设经见证点 $w$ 的可用剩余跳数为 $k-d(u,w)$，则每个子集可独立选择证实最多目标的见证点
 
@@ -92,7 +92,7 @@ cache/kreach-capacity soc-LiveJournal1 4847571 dataset/prepared/soc-LiveJournal1
 | VCRea | 14 / 15 |
 | VCRea+、Directed PLL | 各 13 / 15 |
 
-截至本次核验，共通过 186 项、2,645,712 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建曾因资源方案调整暂停，原回执保留；统一 48 GiB 后继续容量核验与补跑。LiveJournal 的 Directed PLL、VCRea+ 和 VCRea 已分别取得约 49.39 GiB、48.76 GiB、48.08 GiB 的必要编码下界，Pokec 的 PLL 和 VCRea+ 分别取得 48.02 GiB、48.13 GiB 的逐行分配容量下界。Pokec 的基础 VCRea 由八线程完整等价构建通过，实测构建 10,537.02 s，12,790,248,069 条标签，编码负载 26,173,860,885 bytes，峰值约 36.7 GiB，23,551 条查询零错答。该结果使用首次批次计时，单独保留，不参与单线程的严格排名。原低预算实验已全部形成完成或容量回执。上述容量证据针对当时的预算和编码布局，高内存补跑状态见下文
+原低预算与扩展组共通过 186 项、2,645,712 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建曾因资源方案调整暂停，原回执保留；统一 48 GiB 后继续容量核验与补跑。LiveJournal 的 Directed PLL、VCRea+ 和 VCRea 已分别取得约 49.39 GiB、48.76 GiB、48.08 GiB 的必要编码下界，Pokec 的 PLL 和 VCRea+ 分别取得 48.02 GiB、48.13 GiB 的逐行分配容量下界。Pokec 的基础 VCRea 由八线程完整等价构建通过，实测构建 10,537.02 s，12,790,248,069 条标签，编码负载 26,173,860,885 bytes，峰值约 36.7 GiB，23,551 条查询零错答。该结果使用首次批次计时，单独保留，不参与单线程的严格排名。原低预算实验已全部形成完成或容量回执。上述容量证据针对当时的预算和编码布局，高内存补跑结果见下文
 
 为候选方法对比，固定逻辑 CPU 46 和统一 48 GiB 复测六张代表图。pilot 首批计时 78 项全部通过；standard-small 统一预热及五次批次计时的 78 项、1,059,561 次判定也全部通过，均保存实际辅助索引大小。其余七张以同样的 CPU 46、48 GiB 和五轮协议补测，目录为 output/baselines/standard-extended，91 项均通过。两批合并为 13 图、169 项配置、2,373,120 次判定，零错答；每项保留实际辅助索引空间和逐条答案。完整严格比较已生成于 output/baselines，主表 performance.tsv、分方法构建与查询回执和排名位于同一目录。候选试验与强消融见 [自适应半径](adaptive-radius.md)
 
@@ -120,7 +120,7 @@ output/baselines/<run>/
 
 build.json 保存构建状态、完整索引构建时间、有效负载、已分配索引空间、驻留和峰值内存及资源预算；query.json 保存首批和中位批次时间、重复次数、平均延迟、查询数和错答数。新运行保留按冻结查询顺序的逐条布尔答案，固定阈值仅保留对应阈值子序列。索引在原生进程中构建并查询，构建报告记录其大小；当前算法没有索引持久化协议。已有正式回执也按相同结构导出，过去未保留逐条答案流的结果仍有逐条正确性统计与原始回执
 
-全部十五张图的配置状态与证据索引为 `output/baselines/coverage.tsv`，每项指向实际结果表、原始回执或容量证书，严格组与压力组不混合排名。补跑复查自动刷新此表，也可运行 `python3 src/baseline_coverage.py` 独立重建
+全部十五张图的配置状态、构建与查询指标、索引和内存容量以及证据索引为 `output/baselines/coverage.tsv`，每项指向实际结果表、原始回执或容量证书，严格组与压力组不混合排名。补跑复查自动刷新此表，也可运行 `python3 src/baseline_coverage.py` 独立重建
 
 正式汇总表直接位于 `output/baselines/performance.tsv`，方法级构建与查询数据位于同级 `methods/`，排名数据位于 `ranking/`。独立复测目录按数据集和实验用途命名，不使用日期或时间戳；构建时间、查询延迟及实验协议仍按原值保存
 
@@ -154,7 +154,7 @@ python3 src/rank_results.py output/baselines/performance.tsv --strict
 原预算下容量受限的配置保留原有证据和结果，另以串行方式提高内存至 256、384、448 GiB，最后可在物理容量允许时提高至 464 GiB。CPU 24–31 的构建预算为八线程，查询保持单线程。根据容量下界排除不足预算，完整 K-Reach 若已有负载上界则选择能覆盖该上界的初始预算，Pokec 四、六跳均从 384 GiB 起步。启动前等待共享主机留有对应预算及 32 GiB 可用内存余量。无墙钟限制
 
 ```sh
-python3 src/run_stress.py output/baselines/historical/performance.tsv --output output/baselines/pressure
+python3 src/run_stress.py output/baselines/historical/performance.tsv --output output/baselines/pressure --budgets 256 384 448 464 --cpu-set 24-31 --build-threads 8
 python3 src/run_stress.py output/baselines/historical/performance.tsv --output output/baselines/pressure --review
 ```
 
@@ -168,8 +168,28 @@ python3 src/run_stress.py output/baselines/historical/performance.tsv --output o
 | VCRea+ | 125.74 | 74.01 |
 | Directed PLL | 158.00 | 95.66 |
 
-八线程对比的完整记录在 output/validation/baselines/cover-hybrid/comparison.tsv，混合版本还在 Wiki-Vote 三方法的 59,118 条判定及 web-BerkStan 的 22,850 条 VCRea+ 判定上通过真值核验。后续多线程 packed 构建默认采用 25%，可通过 --packed-percent 100 选择完整位并行，回执保存实际 builder 和比例。已运行的压力配置沿用启动时的版本，完整 LiveJournal 构建效果由后续实测确定
+八线程对比的完整记录在 output/validation/baselines/cover-hybrid/comparison.tsv，混合版本还在 Wiki-Vote 三方法的 59,118 条判定及 web-BerkStan 的 22,850 条 VCRea+ 判定上通过真值核验。后续多线程 packed 构建默认采用 25%，可通过 --packed-percent 100 选择完整位并行，回执保存实际 builder 和比例。已运行的压力配置沿用启动时的版本，实际构建器与位并行比例在每项的原始回执中记录
 
 固定 K-Reach 并行构建使用与单线程相同的覆盖集和距离三档编码，每个线程持有独立 BFS 工作区并只写负责的索引行，按根编号的最终行完全一致。新版通过 69,120 次独立判定及逐行编码比较，Wiki-Vote 的真实冻结请求及完整压力入口也运行通过。Pokec 四跳前 512 根的吞吐核验为单线程 20.42 s、八线程 3.66 s，两者条目、扫描量、负载及行校验相同，见 output/validation/baselines/kreach-parallel。该前缀只衡量构建吞吐，完整构建仍以最终查询核验为准
 
-output/baselines/pressure/run.json 保存补跑任务队列，methods/<方法>/<图>/ 下按预算留存原始回执和答案。reviewed_performance.tsv 依据已生成回执复查完成项，区分无回执的已启动、待运行、实际分配失败和严格物理容量下界。LiveJournal 四、六跳当前索引表示已有严格空间不可行证据。Pokec 的 Directed PLL 已在 256 GiB 下完成，构建 10,076.23 s、编码负载 46,092,602,219 bytes、峰值约 63.5 GiB，23,551 条请求零错答；首次批次计时保留。Pokec 的 VCRea+ 亦在 256 GiB 下完成，构建 6,531.36 s、编码负载 40,839,357,802 bytes、分配索引空间 58,624,945,624 bytes、峰值约 56.6 GiB，23,551 条请求零错答，五轮中位批次平均延迟 34.61 µs。其余可行入队配置需等待真实结果。大内存和八线程构建采用独立排名数据，避免与单线程统一预算下的构建时间直接混排
+output/baselines/pressure/run.json 保存补跑任务队列，`methods/<方法>/<图>/` 下按预算留存回执和逐条答案，`reviewed_performance.tsv` 保存实际复查结果，`output/baselines/coverage.tsv` 保存全部配置对应的证据
+
+| 图 | 方法 | 预算 GiB | 构建 s | 辅助索引 GiB | 峰值 RSS GiB | 查询 µs | 通过数 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Pokec | PLL | 256 | 10076.23 | 未记录 | 63.48 | 40.548（首批） | 23551 |
+| Pokec | VCRea+ | 256 | 6531.36 | 54.60 | 56.59 | 34.606 | 23551 |
+| LiveJournal1 | PLL | 256 | 36542.83 | 159.49 | 175.88 | 35.583 | 23230 |
+| LiveJournal1 | VCRea | 256 | 18555.17 | 84.20 | 92.29 | 76.827 | 23230 |
+| LiveJournal1 | VCRea+ | 256 | 20056.34 | 126.38 | 137.23 | 40.661 | 23230 |
+| Pokec | K-Reach k=4 | 384 | 3309.40 | 287.36 | 288.65 | 0.054 | 7933 |
+| Pokec | K-Reach k=6 | 384 | 39055.43 | 314.05 | 303.29 | 0.043 | 7936 |
+
+表中已通过的配置逐条答案均与冻结真值一致，错答为零；除标注首批外，查询时间为预热后五轮中位批次平均值。Pokec 的 PLL 原回执仅保存编码负载 46,092,602,219 bytes，不能当作实际分配空间。压力组使用八线程构建和更高内存预算，且固定阈值配置分档运行，因此不纳入普通 13 图的统一排名
+
+LiveJournal 的 K-Reach 四跳和六跳的严格索引负载下界分别为 586.23 GiB、1793.37 GiB，超出 baojian 的物理内存和交换空间总量；保留该表示的容量证明而不虚构耗时。Pokec 两档索引分别完成，但仅四、六跳的辅助索引空间之和已超过 384 GiB，不视为该预算下可同时驻留的混合阈值索引
+
+##### 最终验收
+
+十五张图的 196 条配置记录中，193 项已通过，共 2,778,373 次判定，错答为零；其余为两个已证物理容量不足的 K-Reach 配置和一个由扩容版本替代的原版 ESTI 配置。九个高内存补跑或容量核验项目均有终态，其中七项实际完成构建与查询，另外两项具备严格容量证据。正式 13 图的单线程统一协议排名保持独立，六图自适应初试及消融结果另见 [方法设计](adaptive-radius.md)
+
+原始图、索引构建及查询回执、全部结果表和逐条答案（正式组及压力补跑组）保存在 baojian 本地，不将不同硬件资源组或不同计时协议的结果合并排名，也不生成图表。通过 coverage.tsv 可直接读取每个配置的构建时间、查询延迟、空间、实际资源和证据路径。最终核心算法回归测试回执保存在 output/validation/baselines/core-checks.tsv 和 core-cover-fixtures.json

@@ -49,23 +49,34 @@ def combine(root):
         status=row["status"]
         if status=="verified" and (row.get("expected")!=row.get("checked") or row.get("mismatches")!="0"):
             raise ValueError(f"{key}: incorrect verification receipt")
-        receipt=row.get("receipt")
-        if receipt:
-            folder=root/row["run"] if row.get("run") else (root/source).parent
-            path=folder/receipt
+        folder=root/row["run"] if row.get("run") else (root/source).parent
+        def evidence(field):
+            value=row.get(field)
+            if not value:
+                return ""
+            path=folder/value
             if not path.is_file():
                 raise FileNotFoundError(path)
-            receipt=str(path.relative_to(root))
-        elif status=="physical_capacity_proved":
+            return str(path.relative_to(root))
+        receipt=evidence("receipt")
+        if status=="physical_capacity_proved":
             receipt=capacity_receipt(root,row)
+        answers=evidence("answers")
+        if status=="verified" and source!="historical/performance.tsv" and not answers:
+            raise ValueError(f"{key}: no stored answers")
+        metrics={field:row.get(field) or "" for field in (
+            "build_s","mean_us","batch_s","first_batch_s","query_repeats",
+            "index_payload_bytes","index_allocated_bytes","ready_rss_kib","process_peak_kib",
+            "comparison_budget_gib","build_threads","solver_threads","cpu_affinity",
+            "builder","packed_percent","graph_sha256","query_sha256","physical_memory_bytes")}
         result.append(dict(graph=key[0],method=key[1],status=status,source_table=source,
-                           receipt=receipt or "",original_status=prior["status"],
+                           receipt=receipt,answers=answers,original_status=prior["status"],
                            expected=row.get("expected") or prior.get("expected"),
                            checked=row.get("checked") or "",
                            mismatches=row.get("mismatches") or "",
                            memory_gib=row.get("execution_memory_gib") or "",
                            timing_protocol=row.get("timing_protocol") or "",
-                           lower_bytes=row.get("lower_bytes") or ""))
+                           lower_bytes=row.get("lower_bytes") or "",**metrics))
     return result
 
 
