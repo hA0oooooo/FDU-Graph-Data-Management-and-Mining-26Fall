@@ -183,7 +183,7 @@ def main():
                   host=socket.gethostname())
     binary = compile_tool("measure")
     fingerprint=hashlib.sha256()
-    for path in sorted([HERE/"measure.cpp",HERE/"index.hpp",HERE/"graph.hpp",HERE/"run.py",ROOT/"src/benchmark_metrics.hpp"]):
+    for path in sorted([HERE/"measure.cpp",HERE/"query_io.hpp",HERE/"index.hpp",HERE/"graph.hpp",HERE/"run.py",ROOT/"src/benchmark_metrics.hpp"]):
         fingerprint.update(path.name.encode())
         fingerprint.update(path.read_bytes())
     metadata.update(source_sha256=fingerprint.hexdigest(),binary_sha256=digest(binary),

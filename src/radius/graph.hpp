@@ -75,6 +75,11 @@ public:
     // A positive decision supplies a path, a negative one closes only this row.
     template<class Policy>
     Answer guided(const Query& q, Policy& policy, bool both=true) {
+        return observe_layers(q,policy,both,[](int,int,int,size_t){});
+    }
+
+    template<class Policy,class Observer>
+    Answer observe_layers(const Query& q, Policy& policy, bool both, Observer layer) {
         if (q.k<0) throw std::invalid_argument("negative k");
         if (q.s==q.t || q.k==0) return {q.s==q.t,'T',0};
         if (!g.side[1].degree(q.s) || !g.side[0].degree(q.t)) return {false,'T',0};
@@ -94,6 +99,7 @@ public:
             next.clear(); work[dir]=0;
             int j=depth[dir]++;
             int remaining=q.k-j;
+            layer(dir,j,depth[1-dir],frontier[1-dir].size());
             for (Node u:frontier[dir]) {
                 int decision = j ? policy.decide(u,dir,j,remaining,dir?q.t:q.s) : 0;
                 if (decision>0) return {true,'U',scans};

@@ -40,6 +40,7 @@ output/
     main/                同资源正式初试
     pilot/               预算探索
     ablation/            强统一半径消融
+    hotspot/             中间点局部距离表、六图主对照与构建诊断
   validation/           独立测试与兼容性验证
 ```
 

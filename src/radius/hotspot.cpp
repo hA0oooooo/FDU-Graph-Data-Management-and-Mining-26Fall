@@ -105,10 +105,11 @@ std::vector<Config> proposals(const Graph& g,const Profiles& p,const Histogram& 
 }
 
 void fit(const Graph& g,Search& search,const fs::path& work,const fs::path& dest,
-         const std::string& method,Count cap) {
-    auto train=load_queries(work/"train.tsv",g.n,-1), val=load_queries(work/"validation.tsv",g.n,-1);
+         const std::string& method,Count cap,int fixed_k,const std::string& pool_name) {
+    auto train=load_queries(work/"train.tsv",g.n,fixed_k), val=load_queries(work/"validation.tsv",g.n,fixed_k);
     auto start=Clock::now();
-    auto roots=choose_roots(g,search,train);
+    auto roots=(method=="profile" || pool_name=="trace") ? choose_roots(g,search,train) : landmarks(g);
+    std::sort(roots.begin(),roots.end());
     if (method=="profile") {
         auto degree=landmarks(g); std::sort(degree.begin(),degree.end());
         std::ofstream out(dest/"hotspots.tsv");
@@ -178,7 +179,10 @@ void evaluate(const std::vector<Query>& qs,const fs::path& dest,Fn fn,Count byte
        <<scans<<'\t'<<certified<<'\t'<<std::setprecision(12)<<setup<<'\n';
 }
 int main(int argc,char** argv) {
-    if (argc!=9) throw std::runtime_error("hotspot phase method nodes edges workloads output config byte-cap");
+    if (argc!=9 && argc!=11) throw std::runtime_error("hotspot phase method nodes edges workloads output config byte-cap [fixed-k pool]");
+    const int fixed_k=argc==11?std::stoi(argv[9]):-1;
+    const std::string pool=argc==11?argv[10]:"trace";
+    if (pool!="degree" && pool!="trace") throw std::invalid_argument("unknown candidate pool");
     std::string phase=argv[1],method=argv[2];
     Graph g=Graph::load(std::stoul(argv[3]),argv[4]);
     Search search(g);
@@ -186,11 +190,11 @@ int main(int argc,char** argv) {
     fs::create_directories(dest);
     if (phase=="fit") {
         if (method!="profile" && method!="uniform" && method!="adaptive") throw std::runtime_error("unknown fit");
-        fit(g,search,work,dest,method,std::stoull(argv[8]));
+        fit(g,search,work,dest,method,std::stoull(argv[8]),fixed_k,pool);
         return 0;
     }
     if (phase!="eval") throw std::runtime_error("unknown phase");
-    auto qs=load_queries(work/"benchmark.tsv",g.n,-1);
+    auto qs=load_queries(work/"benchmark.tsv",g.n,fixed_k);
     auto start=Clock::now();
     if (method=="bibfs") {
         evaluate(qs,dest,[&](const Query& q){return search.run(q);},0,0);

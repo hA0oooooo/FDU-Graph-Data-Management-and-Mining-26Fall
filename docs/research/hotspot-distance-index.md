@@ -12,7 +12,7 @@
 | Cheng 等，Efficient processing of k-hop reachability queries，2014 | 按可用空间选择基本或可扩展索引，后者结合两层索引和残余图，另给出支持多个 $k$ 的构造 | 部分预处理和可变 $k$ 都有直接先例。删减搜索空间依赖原有覆盖条件，截断半径后仍须保证原图上的完整补查 [§5.4–5.7](https://www1.se.cuhk.edu.hk/~hcheng/paper/vldbj-cheng.pdf) |
 | Qiu 等，Real-time Constrained Cycle Detection in Large Dynamic Graphs，2018 | HP-Index 在前后向遍历遇到热点时暂停，拼接预存的热点间受限路径，枚举动态图中的受限环 | 最接近“搜到热点再查表”的先例。本题只问存在性，一张热点到普通顶点的距离表就能处理整个后缀，无需列举路径 [§3](https://www.vldb.org/pvldb/vol11/p1876-qiu.pdf) |
 | Sun 等，PathEnum，2021 | 为单次查询建立轻量索引，按端点距离和剩余跳数减少简单路径枚举中的无效扩展 | $k-j$ 是已有的剪枝依据。此处研究多次布尔查询能否复用同一张局部表，以及表应建多深 [§4，命题 4.3](https://arxiv.org/pdf/2103.11137) |
-| Zheng 等，Workload-Aware Shortest Path Distance Querying in Road Networks，2022 | 利用道路网络查询端点的访问频率优化距离索引 | 训练信号可以来自负载。本题关心搜索中间点实际消耗的扫边数，训练端点本身的重复容易高估可迁移性 [作者机构记录](https://repository.hkust.edu.hk/ir/Record/1783.1-121208) |
+| Bolong Zheng 等，Workload-Aware Shortest Path Distance Querying in Road Networks，2022 | 利用道路网络查询端点的访问频率优化距离索引 | 训练信号可以来自负载。本题关心搜索中间点实际消耗的扫边数，训练端点本身的重复容易高估可迁移性 [作者机构记录](https://repository.hkust.edu.hk/ir/Record/1783.1-121208) |
 | VCRea / VCRea+，2023 | 以覆盖点组织两跳距离标签，支持一般有向图上不同 $k$ 的精确判定 | 标签可能因为距离可由其他枢纽重构而省略。只有完整 BFS 距离球的缺失才能支持本文的局部分支判定 [§3–4](https://www.mdpi.com/2076-3417/13/6/3470) |
 | Cai、Liu、Weiguo Zheng、Lin，EVE，2023 | 确定哪些边属于长度受限的简单路径，输出这些边的并集 | 可以借鉴先提取必要条件、再处理未决部分的思路。其输出比布尔判定更丰富，运行时间不能直接并入本项目排名 [原文](https://arxiv.org/html/2304.12656) |
 | Storandt，Scalable Landmark Hub Labeling，2024 | 利用最短路树构造枢纽与地标标签，并删去其他标签已经能解释的关系 | 提醒我们区分两类空间语义：精简标签可以靠组合重建答案，完整距离球则靠层内无遗漏来判定分支 [§3](https://www.ijcai.org/proceedings/2024/0750.pdf) |
@@ -30,3 +30,21 @@
 仓库的 web-BerkStan 最大入度为 84,208，最大出度为 249，wiki-Talk 最大入度为 3,311，最大出度为 100,022，二者的度数偏斜方向相反。原图双向 BFS 在相同口径的冻结混合负载上分别耗时约 3.02 和 1.74 µs/条。p2p-Gnutella31 的最大入度和出度分别为 68 和 78，查询约 0.27 µs/条。网页和讨论网络值得优先检查，同时保留稀疏 P2P 与度数较均匀的随机图作为对照。度数只能说明展开一次可能昂贵，双向 BFS 会主动选择预计扫边较少的一侧，可能一直绕开这些点 [图结构](../../dataset/graph_stats.tsv) · [基线与测量口径](../workflow/evaluation.md)
 
 判断一张图是否适用要看三个实测量：少数中间点承担多少实际扫边，这些点被展开时各剩几跳，以及覆盖这些剩余跳数需要多少字节。如果展开集中、剩余跳数短，浅表有机会替代昂贵的一次展开。如果不同方向所需深度也有明显差异，自适应才有机会胜过统一半径。若只有第一项成立，实际结论可能只是“给热点统一建一张浅表就够了”。两种结果都能解释预处理预算应花在哪里
+
+##### 在建表前确定每个方向的探测上限
+
+对候选点的一个方向 $p$，令 $r_e$ 为训练时到达该点后的剩余跳数，$a_e$ 为该次实际扫边量。逐方向选择器按 $W_p(h)=\sum_{e:p_e=p,\;r_e\le h}a_e$ 的增量与新增字节之比提议升级。令 $M_p$ 是该方向有非零扫边的最大训练余量，无记录时取 0。在 $h>M_p$ 处代理收益不再增长，字节数单调不减，深度并列时优先浅层。因此逐方向贪心在 $M_p$ 以上不会产生更有利的候选。查询时表外且余量仍大则继续原图搜索，对新源点或新阈值同样精确
+
+这一区别对构建有实际影响。一个方向最多只需要评估两层，就可以在第二层停止 BFS，原实现会先探索六层，再决定保留多少。已有诊断重建了六图的完整与按需方向球，核对截断距离、逐层大小和扫描数。对已知 $k\le K$ 且仅在中间点查表的负载，统一半径同样可以利用 $r\le K-1$。同一公共半径下的活跃方向仍需构造至承诺的深度
+
+##### 运行与复查
+
+在 baojian 的仓库根目录运行。主实验使用混合 $k=2,4,6$，每个顶点 4 个辅助字节，同一 CPU、48 GiB 内存、单线程。选点和探测只使用训练集，验证集选择候选，全部配置冻结后核对正式查询。期间允许零索引，覆盖森林另列实际空间。统一和逐方向策略均将训练、探测和选参计入构建
+
+~~~sh
+python3 src/radius/hotspot.py --output output/adaptive-radius/hotspot-replay
+python3 src/radius/hotspot_analysis.py output/adaptive-radius/hotspot-replay
+python3 src/radius/hotspot_analysis.py output/adaptive-radius/hotspot-replay --construction
+~~~
+
+主实验目录须为新目录。已完成的六图数据保存在本机的 `output/adaptive-radius/hotspot/`。`summary.tsv` 是五方法主表，`performance.tsv` 记录每个进程配对，`ablation/historical.tsv` 关联相同协议的九类基线。机制消融使用固定半径，可按真值类别与 $k$ 核查。构建诊断在 `ablation/construction.tsv` 中分别报告六层扫描、共同五层上限扫描、按方向需求实际重建的扫描及冻结配置对应扫描。主表的构建计时仍使用六层探测，构建诊断的扫描差异尚未转化为新的主表墙钟结果
