@@ -49,7 +49,7 @@ def combine(root):
         status=row["status"]
         if status=="verified" and (row.get("expected")!=row.get("checked") or row.get("mismatches")!="0"):
             raise ValueError(f"{key}: incorrect verification receipt")
-        folder=root/row["run"] if row.get("run") else (root/source).parent
+        folder=root/"runs"/row["run"] if row.get("run") else (root/source).parent
         def evidence(field):
             value=row.get(field)
             if not value:

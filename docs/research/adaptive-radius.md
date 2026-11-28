@@ -2,7 +2,7 @@
 
 查询阈值 $k$ 与索引预处理半径 $h$ 独立。对每个关键点 $\ell$ 分别选择 $h_{\ell}^{in}$、$h_{\ell}^{out}$，保存所选深度内的完整距离层；用有限距离证据直接判定部分请求，剩余请求由原图双向限深搜索保证精确性
 
-对同一张静态有向图，先按总入出度选 12 个关键点，度数相同取原图重编号较小者。每个关键点分别沿入边、出边探测到半径 6，得到各完整层的距离与标签量。统一半径、按前沿成本分配、按训练负载分配三个基础方案使用同一组候选根、同一距离表与查询内核，默认保留上限 $4|V|$ 条，可用 --label-budget-multiple 改为 $|V|$、$8|V|$ 等。[实现](../src/radius/index.hpp)
+对同一张静态有向图，先按总入出度选 12 个关键点，度数相同取原图重编号较小者。每个关键点分别沿入边、出边探测到半径 6，得到各完整层的距离与标签量。统一半径、按前沿成本分配、按训练负载分配三个基础方案使用同一组候选根、同一距离表与查询内核，默认保留上限 $4|V|$ 条，可用 --label-budget-multiple 改为 $|V|$、$8|V|$ 等。[实现](../../src/radius/index.hpp)
 
 均匀配置逐一试验所有装得下的统一 $h$，在验证集上轮换顺序计时六轮，以平均查询耗时的中位数选 $h$。结构配置优先扩浅层，同层优先选待扫边较少的方向。负载配置先在训练集测双向 BFS，每条查询 $q$ 的权重 $w_q$ 取实际扫边数与 4096 的较小值；端点度数为零等零扫描请求不参与收益估计
 
@@ -38,7 +38,7 @@ $$
 
 双拓扑序在强连通分量凝聚 DAG 上执行，用不同的并列顶点顺序各做一次 Kahn 排序。若源分量在任一合法拓扑序中排在目标后，即使不限制跳数也不可达。相同分量或拓扑顺序均符合时仍保留原图搜索
 
-覆盖森林只给覆盖集里的顶点做树编码。每条树边代表一条真实有向边，或一段经覆盖集外顶点的两跳路径；树深度累加真实跳数。从覆盖外的查询端点接入时计入首尾消耗，祖先区间只提供正向路径证据。实现每次最多尝试 64 组接入点，超出即交给原图补查。它可以检验只对覆盖集建树的想法，构造没有承诺保持所有核心点对的最短路。[两个过滤器](../src/radius/filters.hpp)
+覆盖森林只给覆盖集里的顶点做树编码。每条树边代表一条真实有向边，或一段经覆盖集外顶点的两跳路径；树深度累加真实跳数。从覆盖外的查询端点接入时计入首尾消耗，祖先区间只提供正向路径证据。实现每次最多尝试 64 组接入点，超出即交给原图补查。它可以检验只对覆盖集建树的想法，构造没有承诺保持所有核心点对的最短路。[两个过滤器](../../src/radius/filters.hpp)
 
 ##### 按查询阈值启用索引
 
@@ -72,7 +72,7 @@ Wiki-Vote 的自适应配置实际激活三个关键点，正反半径分别为 
 
 ##### 统一评测协议复测
 
-进一步按 [评测与排名标准](evaluation.md)，在 CPU 46、48 GiB 和六图相同冻结查询上测量 78 个历史基线配置、24 个候选配置（4 种方案 × 6 图），分别通过 1,059,561 次、470,916 次判定，零错答。下表为共同六图的摊销及纯查询加速比几何平均，以双向 BFS 为 1
+进一步按 [评测与排名标准](../workflow/evaluation.md)，在 CPU 46、48 GiB 和六图相同冻结查询上测量 78 个历史基线配置、24 个候选配置（4 种方案 × 6 图），分别通过 1,059,561 次、470,916 次判定，零错答。下表为共同六图的摊销及纯查询加速比几何平均，以双向 BFS 为 1
 
 | 方法 | $AS_{10^6}$ | $AS_{10^9}$ | 纯查询加速 |
 | --- | ---: | ---: | ---: |
@@ -89,18 +89,18 @@ Wiki-Vote 的自适应配置实际激活三个关键点，正反半径分别为 
 
 ```sh
 python3 src/radius/run.py --graph wiki-Vote --nodes 7115 --query-name benchmark.tsv --active-uniform --label-budget-multiple 4
-python3 src/radius/summarize.py output/adaptive-radius/pilot --baseline output/baselines/pilot/performance.tsv
-python3 src/radius/summarize.py output/adaptive-radius/ablation --baseline output/baselines/pilot/performance.tsv
+python3 src/radius/summarize.py output/adaptive-radius/pilot --baseline output/baselines/runs/pilot/performance.tsv
+python3 src/radius/summarize.py output/adaptive-radius/ablation --baseline output/baselines/runs/pilot/performance.tsv
 ```
 
 数据保存在 baojian 的以下本地目录
 
 - output/adaptive-radius/pilot：初试、1n/4n/8n 预算及固定阈值记录
 - output/adaptive-radius/ablation：同预算强统一半径消融，每个配置有 build.tsv、repeats.tsv、comparison.tsv、逐条答案和 performance.tsv
-- output/baselines/pilot：六图、同一 CPU 和内存的历史基线复测
+- output/baselines/runs/pilot：六图、同一 CPU 和内存的历史基线复测
 - 每组试验的 summary.tsv 汇总构建、查询、标签数、证书命中比例和估算回收查询数；matched_performance.tsv 按图和查询哈希关联两类结果，matched_pareto_data.tsv 只保留对比数据。全零索引候选仍保留原始耗时，在非支配数据计算中标为 no_active_index
 
-- output/baselines/standard-small：六图按统一五轮批次计时的基线结果
+- output/baselines/runs/standard-small：六图按统一五轮批次计时的基线结果
 - output/adaptive-radius/main：六图的原型复测，summary.tsv、matched_performance.tsv 与 ranking/metrics.tsv、ranking/aggregate.tsv
 
 初步数据和日志留在本地，不同步 Git

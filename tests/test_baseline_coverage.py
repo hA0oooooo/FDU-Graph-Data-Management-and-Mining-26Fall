@@ -22,7 +22,7 @@ class BaselineCoverageTest(unittest.TestCase):
     def test_three_sources(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
-            for path in ("standard-small/receipt.json","historical-core/receipt.json","pressure/raw.json","pressure/answers.tsv","standard-small/answers.tsv"):
+            for path in ("runs/standard-small/receipt.json","runs/historical-core/receipt.json","pressure/raw.json","pressure/answers.tsv","runs/standard-small/answers.tsv"):
                 target=root/path
                 target.parent.mkdir(parents=True,exist_ok=True)
                 target.write_text("{}")
@@ -41,7 +41,7 @@ class BaselineCoverageTest(unittest.TestCase):
                 dict(graph="large",k="6",payload_lower_bytes="100")
             ])
             result={(r["graph"],r["method"]):r for r in combine(root)}
-            self.assertEqual(result["small","bibfs"]["receipt"],"standard-small/receipt.json")
+            self.assertEqual(result["small","bibfs"]["receipt"],"runs/standard-small/receipt.json")
             self.assertEqual(result["large","kreach-6"]["receipt"],"historical/kreach-capacity.tsv")
             self.assertEqual(result["large","pll"]["receipt"],"pressure/raw.json")
             self.assertEqual(result["large","pll"]["status"],"verified")

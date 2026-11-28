@@ -2,14 +2,19 @@
 
 在静态有向无权图 $G$ 上精确判断 $d_G(s,t)\le k$，不可达距离取 $+\infty$。所有主对照接受一般有向图，使用相同冻结原图与请求
 
-| 方法 | 实现来源 | 对照作用 |
-| --- | --- | --- |
-| 限深 BFS、双向限深 BFS | 本项目 C++ 原图搜索 | 在线时间、零索引预处理 |
-| K-Reach | Cheng 等，PVLDB 2012，算法 1–2 独立复现 | 完整顶点覆盖，三档距离编码，固定阈值 |
-| Scalable K-Reach、gen-k-reach | Cheng 等，VLDB Journal 2014，算法 3–5 独立复现 | 两层部分覆盖、距离连接及残余搜索，固定与混合阈值 |
-| ESTI | Cai 与郑卫国，DASFAA 2021 Workshop，作者公开 C++ 源码 | 扩展生成树与拓扑过滤，可变阈值 |
-| VCRea、VCRea+ | Applied Sciences 2023，算法 1–5 独立复现 | 完整覆盖距离标签与度阈值增补 |
-| Directed PLL | Akiba 等，SIGMOD 2013，§6 有向扩展独立实现 | 完整精确距离标签 |
+| 方法 | 实现来源 | 对照作用 | 通过配置 |
+| --- | --- | --- | ---: |
+| 限深 BFS | 本项目 C++ 原图搜索 | 在线搜索、零索引预处理 | 15/15 |
+| 双向限深 BFS | 本项目 C++ 原图双向搜索 | 在线搜索强基线 | 15/15 |
+| K-Reach | Cheng 等，PVLDB 2012，算法 1–2 独立复现 | 完整顶点覆盖，三档距离编码，固定阈值 | 43/45 |
+| Scalable K-Reach | Cheng 等，VLDB Journal 2014，算法 3–5 独立复现 | 两层部分覆盖、距离连接及残余搜索，固定阈值 | 45/45 |
+| gen-k-reach | 同上，独立复现 | 两层索引支持变化阈值 | 15/15 |
+| ESTI | Cai 与郑卫国，DASFAA 2021 Workshop，作者公开 C++ 源码 | 扩展生成树与拓扑过滤，可变阈值 | 15/15 |
+| VCRea | Applied Sciences 2023，算法 1–5 独立复现 | 完整覆盖距离标签 | 15/15 |
+| VCRea+ | 同上，独立复现 | 完整覆盖距离标签与度阈值增补 | 15/15 |
+| Directed PLL | Akiba 等，SIGMOD 2013，§6 有向扩展独立实现 | 完整精确距离标签 | 15/15 |
+
+固定阈值方法按 $k=2,4,6$ 各计一个配置，其余每图计一个。ESTI 的 LiveJournal1 使用仅扩容数组的作者程序版本，原版容量限制单独保存。K-Reach 的两个未通过配置为 LiveJournal1 四跳和六跳，已建立物理容量证明。其余逻辑配置共 193 项通过
 
 原文为 [K-Reach 2012](https://vldb.org/pvldb/vol5/p1292_jamescheng_vldb2012.pdf)、[Scalable K-Reach 2014](https://www1.se.cuhk.edu.hk/~hcheng/paper/vldbj-cheng.pdf)、[ESTI 2021](https://doi.org/10.1007/978-3-030-73216-5_6)、[VCRea 2023](https://www.mdpi.com/2076-3417/13/6/3470)、[PLL 2013](https://arxiv.org/abs/1304.4661)。VCRea 直接用 Scalable K-Reach 与 ESTI 作者程序作为对照，2025 年 Computing Surveys 综述也专列 hop-constrained reachability 与 K-Reach。[综述](https://doi.org/10.1145/3776737)
 
@@ -22,8 +27,8 @@ BFSI-B 与 MultiIndex 面向 DAG，用作 DAG 专项比较；普通可达性的 
 ##### 实现参数与正确性
 
 - K-Reach 每个 $k=2,4,6$ 分别建立完整索引，排序稀疏行及两位密集行表示三种距离档位及不可达四态
-- Scalable 主配置 $b=1000$ 与原文和 VCRea 的对照参数一致，第二层至多 128 根是工程实现的显式配置，若已经覆盖则提前停止。原文按可用内存继续选择第二层根，固定根数上限需在比较中注明。此前大图 $b=16$、第二层 4 根只作为低资源先验对照。[两层索引](baselines/scalable.md)
-- VCRea+ 的接收端点度阈值 $d=1$，与论文主要对照一致。公开伪代码严格大于和等长去冗余存在歧义，本实现采用已知路径不长于当前 BFS 层的证据剪枝，亦保留严格条件与完整 BFS 变体用于小图复核。[覆盖标签及 PLL](baselines/cover-labels.md)
+- Scalable 主配置 $b=1000$ 与原文和 VCRea 的对照参数一致，第二层至多 128 根是工程实现的显式配置，若已经覆盖则提前停止。原文按可用内存继续选择第二层根，固定根数上限需在比较中注明。此前大图 $b=16$、第二层 4 根只作为低资源先验对照。[两层索引](scalable.md)
+- VCRea+ 的接收端点度阈值 $d=1$，与论文主要对照一致。公开伪代码严格大于和等长去冗余存在歧义，本实现采用已知路径不长于当前 BFS 层的证据剪枝，亦保留严格条件与完整 BFS 变体用于小图复核。[覆盖标签及 PLL](cover-labels.md)
 
 独立 Floyd–Warshall 和 BFS 核验覆盖边界、有环图、距离和方向。K-Reach 通过 69,120 条全点对判定，包含稀疏与两位密集编码。Scalable 自检 641 图共 582,786 条判定，包括跨层修正；VCRea、VCRea+、PLL 及其构建变体每种通过 7,650 条小图查询。ESTI 作者程序在 536 张图共通过 37,872 条判定。真实图仍按冻结请求逐条核验
 
@@ -35,19 +40,19 @@ BFSI-B 与 MultiIndex 面向 DAG，用作 DAG 专项比较；普通可达性的 
 python3 src/run_baselines.py wiki-Vote
 python3 src/run_baselines.py all --jobs 4 --cpu-count 72
 python3 src/run_baselines.py wiki-Vote --fixed-k 4
-python3 src/report_baselines.py output/baselines/historical-core output/baselines/historical-extra --output output/baselines/historical/performance.tsv
-python3 src/run_baselines.py --review output/baselines/historical-extra
+python3 src/report_baselines.py output/baselines/runs/historical-core output/baselines/runs/historical-extra --output output/baselines/historical/performance.tsv
+python3 src/run_baselines.py --review output/baselines/runs/historical-extra
 ```
 
 默认正式 `benchmark.tsv`，`--query-name test.tsv` 选择小型诊断输入。均匀点对和分层难度分别使用 `--query-name benchmark-uniform.tsv` 与 `--query-name benchmark-stratified.tsv`，均能直接运行全套基线或半径方案。求解器单线程，默认没有墙钟上限，正式入口统一每项 48 GiB 地址空间上限，按图规模可通过 `--memory-gib 96` 或更高的预算配置所有方法。此前诊断运行给完整 K-Reach 96 GiB、其余方法 48 GiB，已完成配置的最大实测进程峰值 RSS 约 30.95 GiB，K-Reach 最大约 18.17 GiB，保留这些结果和实际执行上限。完整 K-Reach 的四个容量瓶颈均有超过 96 GiB 的严格下界证据。未来新实验保持同一图预算一致，`--kreach-memory-gib` 仅允许显式诊断。重复实验指定独立 `--output`，中断后相同程序和配置可用 `--resume` 从已有回执恢复
 
 `run.json` 保存源码指纹、编译器、图列表、配置和运行机器。各图与方法的 JSON/TSV 和日志全部在本地 output，`performance.tsv` 由回执生成并校验查询和图 SHA-256，记录完成状态、查询数及错答、构建秒数、批查询秒数、首批时间、重复次数、平均延迟、原报告索引负载、实际辅助索引分配容量、就绪 RSS 和峰值 RSS（KiB）及相对回执路径。固定阈值每档分母仅包含该阈值请求；混合阈值独立构建一次。有效负载不含容器开销，峰值 RSS 含图和构建空间。未采集字段留空，失败配置的计时不参与比较
 
-baojian（xsuper）有 48 个物理核、96 个逻辑 CPU、503 GiB RAM。默认串行且绑定同一个可用逻辑 CPU（`--jobs 1 --cpu-count 1`）；并行验收可开放 72 个逻辑 CPU 并运行多个独立配置，每个求解器仍使用一个线程，运行元数据保存实际 CPU 亲和性与构建线程数，压力图多线程等价构建的结果单独标明，不混入单线程预处理比较。正式延迟比较使用串行、绑定相同 CPU、固定请求序列，预热一轮后重复完整批次五次取中位数。此前首次批查询保存用于初步分析，计时协议独立记录。[测量与排序标准](evaluation.md)自适应方案使用同一 `benchmark.tsv` 作为最终测试，与独立训练和验证分离，构建计入选根、探测、调参和建表全部环节
+baojian（xsuper）有 48 个物理核、96 个逻辑 CPU、503 GiB RAM。默认串行且绑定同一个可用逻辑 CPU（`--jobs 1 --cpu-count 1`）；并行验收可开放 72 个逻辑 CPU 并运行多个独立配置，每个求解器仍使用一个线程，运行元数据保存实际 CPU 亲和性与构建线程数，压力图多线程等价构建的结果单独标明，不混入单线程预处理比较。正式延迟比较使用串行、绑定相同 CPU、固定请求序列，预热一轮后重复完整批次五次取中位数。此前首次批查询保存用于初步分析，计时协议独立记录。[测量与排序标准](../workflow/evaluation.md)自适应方案使用同一 `benchmark.tsv` 作为最终测试，与独立训练和验证分离，构建计入选根、探测、调参和建表全部环节
 
 ##### 大图完整索引的容量
 
-完整 K-Reach 的覆盖根数记 $r$。若根 $s$ 至少有 $L_s$ 个可达其他覆盖根，则当前行表示至少占 $\min(4L_s,\lceil r/4\rceil)$ 字节。用 32 个高入出度见证点分别做正反 BFS，依据真实路径组合建立 $L_s$ 的严格下界。对所有覆盖根求和得到当前稀疏/两位密集构造的负载下界，忽略容器及原图内存。[容量核验程序](../src/baselines/kreach/capacity.cpp)
+完整 K-Reach 的覆盖根数记 $r$。若根 $s$ 至少有 $L_s$ 个可达其他覆盖根，则当前行表示至少占 $\min(4L_s,\lceil r/4\rceil)$ 字节。用 32 个高入出度见证点分别做正反 BFS，依据真实路径组合建立 $L_s$ 的严格下界。对所有覆盖根求和得到当前稀疏/两位密集构造的负载下界，忽略容器及原图内存。[容量核验程序](../../src/baselines/kreach/capacity.cpp)
 
 | 图 | $k=4$ 负载下界 GiB | $k=6$ 负载下界 GiB |
 | --- | ---: | ---: |
@@ -74,8 +79,8 @@ cache/kreach-capacity soc-LiveJournal1 4847571 dataset/prepared/soc-LiveJournal1
 
 ##### 实验回执目录
 
-- `output/baselines/historical-core` 为原十图的扩大正式查询集
-- `output/baselines/historical-extra` 为新增五图，相同强基线配置，65 个配置已全部验证通过
+- `output/baselines/runs/historical-core` 为原十图的扩大正式查询集
+- `output/baselines/runs/historical-extra` 为新增五图，相同强基线配置，65 个配置已全部验证通过
 - `output/baselines/historical/performance.tsv` 合并十五图，保留每条状态、指标与原始运行标识
 - `output/validation/baselines/initial` 保存旧 2,849 条诊断查询和时间受限回执
 
@@ -94,7 +99,7 @@ cache/kreach-capacity soc-LiveJournal1 4847571 dataset/prepared/soc-LiveJournal1
 
 原低预算与扩展组共通过 186 项、2,645,712 次判定，错答为零；另记录原版 ESTI 的一个固定数组容量限制、K-Reach 两个实际内存分配失败及两个严格容量下界证书。Pokec 和 LiveJournal 的六项完整标签构建曾因资源方案调整暂停，原回执保留；统一 48 GiB 后继续容量核验与补跑。LiveJournal 的 Directed PLL、VCRea+ 和 VCRea 已分别取得约 49.39 GiB、48.76 GiB、48.08 GiB 的必要编码下界，Pokec 的 PLL 和 VCRea+ 分别取得 48.02 GiB、48.13 GiB 的逐行分配容量下界。Pokec 的基础 VCRea 由八线程完整等价构建通过，实测构建 10,537.02 s，12,790,248,069 条标签，编码负载 26,173,860,885 bytes，峰值约 36.7 GiB，23,551 条查询零错答。该结果使用首次批次计时，单独保留，不参与单线程的严格排名。原低预算实验已全部形成完成或容量回执。上述容量证据针对当时的预算和编码布局，高内存补跑结果见下文
 
-为候选方法对比，固定逻辑 CPU 46 和统一 48 GiB 复测六张代表图。pilot 首批计时 78 项全部通过；standard-small 统一预热及五次批次计时的 78 项、1,059,561 次判定也全部通过，均保存实际辅助索引大小。其余七张以同样的 CPU 46、48 GiB 和五轮协议补测，目录为 output/baselines/standard-extended，91 项均通过。两批合并为 13 图、169 项配置、2,373,120 次判定，零错答；每项保留实际辅助索引空间和逐条答案。完整严格比较已生成于 output/baselines，主表 performance.tsv、分方法构建与查询回执和排名位于同一目录。候选试验与强消融见 [自适应半径](adaptive-radius.md)
+为候选方法对比，固定逻辑 CPU 46 和统一 48 GiB 复测六张代表图。runs/pilot 首批计时 78 项全部通过；runs/standard-small 统一预热及五次批次计时的 78 项、1,059,561 次判定也全部通过，均保存实际辅助索引大小。其余七张以同样的 CPU 46、48 GiB 和五轮协议补测，目录为 output/baselines/runs/standard-extended，91 项均通过。两批合并为 13 图、169 项配置、2,373,120 次判定，零错答；每项保留实际辅助索引空间和逐条答案。完整严格比较已生成于 output/baselines，主表 performance.tsv、分方法构建与查询回执和排名位于同一目录。候选试验与强消融见 [自适应半径](../research/adaptive-radius.md)
 
 以 web-BerkStan 的 22,850 条正式查询为例，首次批查询耗时约为双向 BFS 0.070 s、gen-k-reach 0.258 s、VCRea+ 0.015 s。后两者构建分别约 10.3 s 与 61.5 s。Pokec 和 LiveJournal 的普通限深 BFS 批查询分别约 964 s 和 1,860 s，而双向 BFS 均约 0.56 s。两图的 gen-k-reach 构建分别约 459 s 与 902 s，批查询约 5.53 s 与 5.40 s。表明双向 BFS 是本查询分布下需要认真对比的在线基线，不能仅凭建表或命中标签推定最终收益
 
@@ -124,10 +129,10 @@ build.json 保存构建状态、完整索引构建时间、有效负载、已分
 
 正式汇总表直接位于 `output/baselines/performance.tsv`，方法级构建与查询数据位于同级 `methods/`，排名数据位于 `ranking/`。独立复测目录按数据集和实验用途命名，不使用日期或时间戳；构建时间、查询延迟及实验协议仍按原值保存
 
-正式排名按 [评测标准](evaluation.md) 执行，分别输出逐图各项指标和共同图排名。现有初步非支配数据仍保存在 output/baselines/historical/pareto/pareto.tsv。当前只生成数据
+正式排名按 [评测标准](../workflow/evaluation.md) 执行，分别输出逐图各项指标和共同图排名。现有初步非支配数据仍保存在 output/baselines/historical/pareto/pareto.tsv。当前只生成数据
 
 ```sh
-python3 src/report_baselines.py output/baselines/standard-small output/baselines/standard-extended --output output/baselines/performance.tsv
+python3 src/report_baselines.py output/baselines/runs/standard-small output/baselines/runs/standard-extended --output output/baselines/performance.tsv
 python3 src/rank_results.py output/baselines/performance.tsv --strict
 ```
 
@@ -190,6 +195,6 @@ LiveJournal 的 K-Reach 四跳和六跳的严格索引负载下界分别为 586.
 
 ##### 最终验收
 
-十五张图的 196 条配置记录中，193 项已通过，共 2,778,373 次判定，错答为零；其余为两个已证物理容量不足的 K-Reach 配置和一个由扩容版本替代的原版 ESTI 配置。九个高内存补跑或容量核验项目均有终态，其中七项实际完成构建与查询，另外两项具备严格容量证据。正式 13 图的单线程统一协议排名保持独立，六图自适应初试及消融结果另见 [方法设计](adaptive-radius.md)
+十五张图的 196 条配置记录中，193 项已通过，共 2,778,373 次判定，错答为零；其余为两个已证物理容量不足的 K-Reach 配置和一个由扩容版本替代的原版 ESTI 配置。九个高内存补跑或容量核验项目均有终态，其中七项实际完成构建与查询，另外两项具备严格容量证据。正式 13 图的单线程统一协议排名保持独立，六图自适应初试及消融结果另见 [方法设计](../research/adaptive-radius.md)
 
 原始图、索引构建及查询回执、全部结果表和逐条答案（正式组及压力补跑组）保存在 baojian 本地，不将不同硬件资源组或不同计时协议的结果合并排名，也不生成图表。通过 coverage.tsv 可直接读取每个配置的构建时间、查询延迟、空间、实际资源和证据路径。最终核心算法回归测试回执保存在 output/validation/baselines/core-checks.tsv 和 core-cover-fixtures.json
