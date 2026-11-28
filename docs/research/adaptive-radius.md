@@ -104,3 +104,5 @@ python3 src/radius/summarize.py output/adaptive-radius/ablation --baseline outpu
 - output/adaptive-radius/main：六图的原型复测，summary.tsv、matched_performance.tsv 与 ranking/metrics.tsv、ranking/aggregate.tsv
 
 初步数据和日志留在本地，不同步 Git
+
+从入口查表延伸到中间热点的文献依据与适用条件见[热点与剩余跳数](hotspot-distance-index.md)
