@@ -53,6 +53,11 @@ struct Graph {
 struct Query { Node s,t; int k,d; };
 struct Answer { bool yes; char route; Count scans; };
 
+struct PlainSearch {
+    int decide(Node, int, int, int, Node) const { return 0; }
+    void scanned(Node, int, int, int, Count) const {}
+};
+
 class Search {
     const Graph& g;
     std::array<std::vector<uint32_t>,2> seen;
@@ -63,6 +68,13 @@ public:
     explicit Search(const Graph& graph):g(graph) { for (auto& v:seen) v.resize(g.n); }
 
     Answer run(const Query& q, bool both=true) {
+        PlainSearch policy;
+        return guided(q, policy, both);
+    }
+
+    // A positive decision supplies a path, a negative one closes only this row.
+    template<class Policy>
+    Answer guided(const Query& q, Policy& policy, bool both=true) {
         if (q.k<0) throw std::invalid_argument("negative k");
         if (q.s==q.t || q.k==0) return {q.s==q.t,'T',0};
         if (!g.side[1].degree(q.s) || !g.side[0].degree(q.t)) return {false,'T',0};
@@ -74,20 +86,31 @@ public:
         seen[0][q.t]=seen[1][q.s]=epoch;
         Count work[2]={g.side[0].degree(q.t),g.side[1].degree(q.s)};
         Count scans=0;
+        int depth[2]={0,0};
         for (int step=0;step<q.k;++step) {
             int dir=both && work[0]<work[1] ? 0:1;
             if (!work[dir]) break;
             const auto& adj=g.side[dir];
             next.clear(); work[dir]=0;
+            int j=depth[dir]++;
+            int remaining=q.k-j;
             for (Node u:frontier[dir]) {
+                int decision = j ? policy.decide(u,dir,j,remaining,dir?q.t:q.s) : 0;
+                if (decision>0) return {true,'U',scans};
+                if (decision<0) continue;
+                Count before=scans;
                 for (auto i=adj.offsets[u];i<adj.offsets[u+1];++i) {
                     Node v=adj.neighbors[i]; ++scans;
-                    if (seen[1-dir][v]==epoch) return {true,'F',scans};
+                    if (seen[1-dir][v]==epoch) {
+                        policy.scanned(u,dir,j,remaining,scans-before);
+                        return {true,'F',scans};
+                    }
                     if (seen[dir][v]!=epoch) {
                         seen[dir][v]=epoch; next.push_back(v);
                         work[dir]+=adj.degree(v);
                     }
                 }
+                policy.scanned(u,dir,j,remaining,scans-before);
             }
             next.swap(frontier[dir]);
         }
