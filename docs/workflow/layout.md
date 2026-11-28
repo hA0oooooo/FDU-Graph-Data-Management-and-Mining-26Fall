@@ -41,6 +41,7 @@ output/
     pilot/               预算探索
     ablation/            强统一半径消融
     hotspot/             中间点局部距离表、六图主对照与构建诊断
+    demand-profile/      按需构建主实验、固定配置消融及新源点确认
   validation/           独立测试与兼容性验证
 ```
 

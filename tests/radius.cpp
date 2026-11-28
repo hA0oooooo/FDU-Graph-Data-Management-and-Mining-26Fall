@@ -1,4 +1,4 @@
-#include "../src/radius/hotspot.hpp"
+#include "../src/radius/hotspot_training.hpp"
 #include "../src/radius/filters.hpp"
 #include <cassert>
 #include <iostream>
@@ -25,7 +25,14 @@ int main() {
     assert(via.guided(Query{0,5,5,5},local,false).yes);
     assert(!via.guided(Query{0,5,4,5},local,false).yes);
     assert(via.guided(Query{0,4,4,4},local,false).route=='U');
-    Count checked=0;
+    // The training cap is per direction; longer future queries still use exact fallback.
+    Histogram recorded(root);
+    recorded.scans[0][1]=7;
+    recorded.scans[1][2]=20;
+    assert((probe_limits(recorded,"full",6)==Config{6,6}));
+    assert((probe_limits(recorded,"global",6)==Config{5,5}));
+    assert((probe_limits(recorded,"demand",6)==Config{1,2}));
+    Count checked=0, adaptive_checked=0;
     for (int mask=0;mask<512;++mask) {
         std::vector<std::pair<Node,Node>> edges;
         int d[3][3];
@@ -46,6 +53,31 @@ int main() {
             assert(search.run(q,false).yes==(d[s][t]<=k));
             qs.push_back(q); weights.push_back(50);
         }
+        // Use a generous budget to exercise both direction selection and tie ordering.
+        std::sort(roots.begin(),roots.end());
+        for (auto& q:qs) if(q.d==99) q.d=-1;
+        auto train=histogram(search,qs,roots);
+        auto full=probe_limits(train,"full",4);
+        auto glob=probe_limits(train,"global",4);
+        auto demand=probe_limits(train,"demand",4);
+        auto fp=profiles(g,roots,full), gp=profiles(g,roots,glob), dp=profiles(g,roots,demand);
+        for (Count cap:{Count(0),Count(256),Count(4096)}) {
+            auto expected=candidates_for(g,fp,train,full,false,6,cap);
+            assert(expected==candidates_for(g,gp,train,glob,false,3,cap));
+            assert(expected==candidates_for(g,dp,train,demand,false,3,cap));
+            for(const auto& cfg:expected) {
+                HotIndex legacy(fp,cfg,roots,g.n), bounded(dp,cfg,roots,g.n);
+                assert(legacy.bytes()==bounded.bytes());
+                for(auto q:qs) for (int k:{0,1,2,3,4,5,6,8}) {
+                    q.k=k;
+                    auto a=legacy.query(search,q), b=bounded.query(search,q);
+                    assert(a.yes==b.yes && a.route==b.route && a.scans==b.scans);
+                    assert(a.yes==(q.d>=0 && q.d<=k));
+                    ++adaptive_checked;
+                }
+            }
+        }
+        for (auto& q:qs) if(q.d==-1) q.d=99;
         Topology topo(g); CoverTree tree(g);
         for (auto q:qs) {
             assert(!topo.witness(g,q) || q.d>q.k);
@@ -66,5 +98,6 @@ int main() {
             }
         }
     }
-    std::cout<<checked<<" index/config/query combinations verified against Floyd-Warshall\n";
+    std::cout<<checked<<" index/config/query combinations verified against Floyd-Warshall\n"
+             <<adaptive_checked<<" profile/candidate/query equivalence checks\n";
 }

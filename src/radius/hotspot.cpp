@@ -1,4 +1,4 @@
-#include "hotspot.hpp"
+#include "hotspot_training.hpp"
 #include "filters.hpp"
 #include "query_io.hpp"
 #include "../benchmark_metrics.hpp"
@@ -6,107 +6,45 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
-#include <set>
+#include <map>
 
 using namespace khop;
 namespace fs=std::filesystem;
 using Clock=std::chrono::steady_clock;
-using Bins=std::array<Count,max_radius+1>;
 
 double seconds(Clock::time_point start) {
     return std::chrono::duration<double>(Clock::now()-start).count();
 }
-struct RootTrace : PlainSearch {
-    std::vector<Count> edges;
-    explicit RootTrace(Node n):edges(n) {}
-    void scanned(Node u,int,int j,int,Count a) { if(j) edges[u]+=a; }
-};
-std::vector<Node> choose_roots(const Graph& g,Search& search,const std::vector<Query>& train) {
-    RootTrace trace(g.n);
-    for (const Query& q:train) check(q,search.guided(q,trace));
-    std::vector<Node> ids(g.n);
-    std::iota(ids.begin(),ids.end(),0);
-    ids.erase(std::remove_if(ids.begin(),ids.end(),[&](Node u){return !trace.edges[u];}),ids.end());
-    auto end=ids.begin()+std::min<size_t>(12,ids.size());
-    std::partial_sort(ids.begin(),end,ids.end(),[&](Node a,Node b){
-        return trace.edges[a]!=trace.edges[b]?trace.edges[a]>trace.edges[b]:a<b;
-    });
-    ids.erase(end,ids.end());
-    std::sort(ids.begin(),ids.end());
-    return ids;
+void read_config(const fs::path& path,Node n,std::vector<Node>& roots,Config& cfg) {
+    std::ifstream in(path); std::string header; std::getline(in,header);
+    if (header!="root\tin\tout") throw std::runtime_error("invalid frozen radii");
+    Node v; int a,b;
+    while (in>>v>>a>>b) {
+        if(v>=n || (!roots.empty() && roots.back()>=v) || std::min(a,b)<0 || std::max(a,b)>max_radius)
+            throw std::runtime_error("invalid radius row");
+        roots.push_back(v); cfg.push_back(a);cfg.push_back(b);
+    }
+    if(!in.eof()) throw std::runtime_error("invalid radius file");
 }
 
-struct Histogram : PlainSearch {
-    const std::vector<Node>& roots;
-    std::vector<Bins> scans,visits;
-    std::vector<std::array<std::set<Node>,max_radius+1>> sources;
-    Node source=0;
-    Count total=0;
-    explicit Histogram(const std::vector<Node>& ids):roots(ids),scans(2*ids.size()),
-        visits(scans.size()),sources(scans.size()) {}
-    void scanned(Node u,int dir,int j,int r,Count a) {
-        total+=a;
-        if (!j) return;
-        auto it=std::lower_bound(roots.begin(),roots.end(),u);
-        if (it==roots.end() || *it!=u) return;
-        size_t p=2*(it-roots.begin())+dir;
-        scans[p].at(r)+=a;
-        ++visits[p].at(r);
-        sources[p].at(r).insert(source);
+// Exact representation of the allocated immutable table, for hashing outside the timed region.
+void export_table(const HotIndex& index,const fs::path& path) {
+    std::ofstream out(path,std::ios::binary);
+    auto scalar=[&](uint64_t x){out.write(reinterpret_cast<const char*>(&x),sizeof(x));};
+    scalar(index.tables.size());
+    for (const auto& pair:index.tables) for (const Table* t:{&pair.first,&pair.second}) {
+        scalar(t->root); scalar(t->h); scalar(t->dense);
+        scalar(t->ids.size()); scalar(t->values.size());
+        if (!t->ids.empty()) out.write(reinterpret_cast<const char*>(t->ids.data()),sizeof(Node)*t->ids.size());
+        if (!t->values.empty()) out.write(reinterpret_cast<const char*>(t->values.data()),t->values.size());
     }
-};
-Histogram histogram(Search& search,const std::vector<Query>& qs,const std::vector<Node>& roots) {
-    Histogram hist(roots);
-    for (const Query& q:qs) {
-        hist.source=q.s;
-        Count before=hist.total;
-        auto a=search.guided(q,hist);
-        check(q,a);
-        if (hist.total-before!=a.scans) throw std::runtime_error("edge accounting mismatch");
-    }
-    return hist;
+    if (!out) throw std::runtime_error("table export failed");
 }
-Profiles profiles(const Graph& g,const std::vector<Node>& roots,const Config& depths) {
-    Profiles result;
-    for (size_t i=0;i<depths.size();++i)
-        result.push_back(depths[i]?explore(g.side[i%2],roots[i/2],depths[i]):Profile{});
-    return result;
-}
-std::vector<Config> proposals(const Graph& g,const Profiles& p,const Histogram& hist,int uniform,Count cap) {
-    Config cfg(p.size(),0);
-    std::vector<Config> result{cfg};
-    Count previous=0;
-    for (;;) {
-        double best=0;
-        Count best_bytes=0;
-        size_t chosen=0; int depth=0;
-        for (size_t i=0;i<p.size();++i) {
-            int h=cfg[i];
-            Count gain=0;
-            for (int j=h+1;j<=max_radius;++j) {
-                gain+=hist.scans[i][j];
-                if (!gain || (uniform && j!=uniform)) continue;
-                cfg[i]=j;
-                Count bytes=HotIndex::estimate(p,cfg,g.n);
-                cfg[i]=h;
-                if (bytes>cap) continue;
-                double score=double(gain)/std::max<Count>(1,bytes>previous?bytes-previous:0);
-                if (score>best || (score==best && bytes<best_bytes)) {
-                    best=score; best_bytes=bytes; chosen=i; depth=j;
-                }
-            }
-        }
-        if (!best) break;
-        cfg[chosen]=depth; previous=best_bytes;
-        if (result.size()==1) result.push_back(cfg);
-    }
-    if (result.back()!=cfg) result.push_back(cfg);
-    return result;
-}
-
 void fit(const Graph& g,Search& search,const fs::path& work,const fs::path& dest,
-         const std::string& method,Count cap,int fixed_k,const std::string& pool_name) {
-    auto train=load_queries(work/"train.tsv",g.n,fixed_k), val=load_queries(work/"validation.tsv",g.n,fixed_k);
+         const std::string& method,Count cap,int fixed_k,const std::string& pool_name,
+         const std::string& policy="full",const fs::path& frozen={},bool study=false) {
+    auto train=load_queries(work/"train.tsv",g.n,fixed_k);
+    auto val=frozen.empty()?load_queries(work/"validation.tsv",g.n,fixed_k):std::vector<Query>{};
     auto start=Clock::now();
     auto roots=(method=="profile" || pool_name=="trace") ? choose_roots(g,search,train) : landmarks(g);
     std::sort(roots.begin(),roots.end());
@@ -124,16 +62,28 @@ void fit(const Graph& g,Search& search,const fs::path& work,const fs::path& dest
         return;
     }
     auto hist=histogram(search,train,roots);
-    auto p=profiles(g,roots,Config(2*roots.size(),max_radius));
-    std::vector<Config> candidates;
-    int first=method=="uniform"?1:0,last=first?max_radius:0;
-    for (int h=first;h<=last;++h) for(auto& cfg:proposals(g,p,hist,h,cap))
-        if (std::find(candidates.begin(),candidates.end(),cfg)==candidates.end()) candidates.push_back(cfg);
+    double training=seconds(start);
     Config chosen;
+    if (!frozen.empty()) {
+        std::vector<Node> fixed_roots;
+        read_config(frozen,g.n,fixed_roots,chosen);
+        if (fixed_roots!=roots) throw std::logic_error("fixed roots differ from training");
+    }
+    auto tick=Clock::now();
+    int k=fixed_k>0?fixed_k:6;
+    auto limits=probe_limits(hist,policy,k);
+    auto p=profiles(g,roots,limits);
+    double probe=seconds(tick);
+    tick=Clock::now();
+    auto candidates=candidates_for(g,p,hist,limits,method=="uniform",policy=="full"?max_radius:k-1,cap);
+    double choose=seconds(tick);
+    if (!frozen.empty() && std::find(candidates.begin(),candidates.end(),chosen)==candidates.end())
+        throw std::logic_error("fixed configuration is not a candidate");
+    tick=Clock::now();
     double best=std::numeric_limits<double>::infinity();
     Count size=0;
     std::vector<std::tuple<size_t,double,double,Count>> scores;
-    for(size_t i=0;i<candidates.size();++i) {
+    for(size_t i=0;frozen.empty() && i<candidates.size();++i) {
         auto tick=Clock::now();
         HotIndex index(p,candidates[i],roots,g.n);
         double encode=seconds(tick);
@@ -145,10 +95,34 @@ void fit(const Graph& g,Search& search,const fs::path& work,const fs::path& dest
             best=score; chosen=candidates[i]; size=index.bytes();
         }
     }
+    double validation=seconds(tick);
+    tick=Clock::now();
     HotIndex final(p,chosen,roots,g.n);
-    auto build=seconds(start);
+    double encode=seconds(tick);
+    double build=frozen.empty()?training+probe+choose+validation+encode:training+probe+encode;
+    if (!study) build=seconds(start);
+    if (study) {
+        export_table(final,dest/"table.bin");
+        std::ofstream detail(dest/"candidates.tsv");
+        detail<<"candidate\tradii\n";
+        for (size_t i=0;i<candidates.size();++i) {
+            detail<<i<<'\t';
+            for (int h:candidates[i]) detail<<h<<' ';
+            detail<<'\n';
+        }
+        std::ofstream dirs(dest/"directions.tsv");
+        dirs<<"root\tdirection\tlimit\tchosen_h\tscans\n";
+        for (size_t i=0;i<limits.size();++i) {
+            auto scans=std::accumulate(p[i].scans.begin(),p[i].scans.end(),Count(0));
+            dirs<<roots[i/2]<<'\t'<<(i%2?"out":"in")<<'\t'<<limits[i]<<'\t'<<chosen[i]<<'\t'<<scans<<'\n';
+        }
+    }
     std::ofstream stats(dest/"fit.tsv");
-    stats<<"build_s\tindex_bytes\tcandidates\n"<<std::setprecision(12)<<build<<'\t'<<final.bytes()<<'\t'<<scores.size()<<'\n';
+    Count scanned=0;
+    for (const auto& direction:p) scanned+=std::accumulate(direction.scans.begin(),direction.scans.end(),Count(0));
+    stats<<"build_s\tindex_bytes\tcandidates\ttraining_s\tprobe_s\tchoose_s\tvalidation_s\tencode_s\tprobe_scans\n"
+         <<std::setprecision(12)<<build<<'\t'<<final.bytes()<<'\t'<<candidates.size()<<'\t'<<training<<'\t'<<probe<<'\t'
+         <<choose<<'\t'<<validation<<'\t'<<encode<<'\t'<<scanned<<'\n';
     std::ofstream cfg(dest/"radii.tsv");
     cfg<<"root\tin\tout\n";
     for(size_t i=0;i<roots.size();++i) cfg<<roots[i]<<'\t'<<chosen[2*i]<<'\t'<<chosen[2*i+1]<<'\n';
@@ -161,17 +135,50 @@ void fit(const Graph& g,Search& search,const fs::path& work,const fs::path& dest
     }
 }
 template<class Fn>
-void evaluate(const std::vector<Query>& qs,const fs::path& dest,Fn fn,Count bytes,double setup) {
+void evaluate(const std::vector<Query>& qs,const fs::path& dest,Fn fn,Count bytes,double setup,bool study=false,bool transfer=false) {
     auto batch=khop_bench::measure(qs.size(),[&](size_t i){return fn(qs[i]).yes;});
     std::ofstream answers(dest/"answers.tsv");
     answers<<"yes\n";
     Count scans=0,certified=0;
+    struct Group {Count n=0,scans=0;};
+    std::map<std::pair<int,std::string>,Group> groups;
+    std::ofstream details;
+    if(study) {
+        details.open(dest/"details.tsv");
+        details<<"yes\troute\tscans\n";
+    }
     for(size_t i=0;i<qs.size();++i) {
         auto a=fn(qs[i]);
         check(qs[i],a);
         if (a.yes!=bool(batch.answers[i])) throw std::runtime_error("timed answer differs");
         answers<<int(a.yes)<<'\n';
         scans+=a.scans; certified+=(a.route=='U');
+        if (study) {
+            details<<a.yes<<'\t'<<a.route<<'\t'<<a.scans<<'\n';
+            const auto& q=qs[i];
+            auto& group=groups[{q.k,q.d<0?"unreachable":q.d>q.k?"beyond":"within"}];
+            ++group.n; group.scans+=a.scans;
+        }
+    }
+    if (study) {
+        std::ofstream detail(dest/"groups.tsv");
+        detail<<"k\tclass\tqueries\tscans\n";
+        for (int k:{2,4,6}) for (std::string name:{"within","beyond","unreachable"}) {
+            auto group=groups[{k,name}];
+            detail<<k<<'\t'<<name<<'\t'<<group.n<<'\t'<<group.scans<<'\n';
+        }
+        if(transfer) {
+            std::ofstream by_k(dest/"threshold.tsv");
+            by_k<<"k\tqueries\tbatch_ns\n";
+            for (int k:{2,4,6}) {
+                std::vector<size_t> rows;
+                for(size_t i=0;i<qs.size();++i) if(qs[i].k==k) rows.push_back(i);
+                if(rows.empty()) {by_k<<k<<"\t0\tNA\n";continue;}
+                auto t=khop_bench::measure(rows.size(),[&](size_t i){return fn(qs[rows[i]]).yes;});
+                for(size_t i=0;i<rows.size();++i) check(qs[rows[i]],{bool(t.answers[i]),'F',0});
+                by_k<<k<<'\t'<<rows.size()<<'\t'<<t.median_ns<<'\n';
+            }
+        }
     }
     std::ofstream out(dest/"query.tsv");
     out<<"queries\tbatch_ns\tfirst_ns\trepeats\tindex_bytes\tscans\tcertified_true\tsetup_s\n"
@@ -188,16 +195,25 @@ int main(int argc,char** argv) {
     Search search(g);
     fs::path work=argv[5],dest=argv[6];
     fs::create_directories(dest);
+    if (phase=="study-fit" || phase=="study-build") {
+        bool uniform=method=="uniform-global";
+        if(!uniform && method.rfind("adaptive-",0)!=0) throw std::runtime_error("invalid study method");
+        auto policy=uniform?std::string("global"):method.substr(9);
+        fit(g,search,work,dest,uniform?"uniform":"adaptive",std::stoull(argv[8]),fixed_k,pool,
+            policy,phase=="study-build"?fs::path(argv[7]):fs::path{},true);
+        return 0;
+    }
     if (phase=="fit") {
         if (method!="profile" && method!="uniform" && method!="adaptive") throw std::runtime_error("unknown fit");
         fit(g,search,work,dest,method,std::stoull(argv[8]),fixed_k,pool);
         return 0;
     }
-    if (phase!="eval") throw std::runtime_error("unknown phase");
-    auto qs=load_queries(work/"benchmark.tsv",g.n,fixed_k);
+    bool study=phase=="study-eval" || phase=="study-transfer";
+    if (phase!="eval" && !study) throw std::runtime_error("unknown phase");
+    auto qs=load_queries(study?work:work/"benchmark.tsv",g.n,fixed_k);
     auto start=Clock::now();
     if (method=="bibfs") {
-        evaluate(qs,dest,[&](const Query& q){return search.run(q);},0,0);
+        evaluate(qs,dest,[&](const Query& q){return search.run(q);},0,0,study,phase=="study-transfer");
     } else if (method=="tree") {
         CoverTree tree(g);
         double setup=seconds(start);
@@ -205,23 +221,18 @@ int main(int argc,char** argv) {
         evaluate(qs,dest,[&](const Query& q){
             return tree.witness(g,q)?Answer{true,'U',0}:search.run(q);
         },bytes,setup);
-    } else if (method=="uniform" || method=="adaptive" || method=="entry") {
-        std::ifstream in(argv[7]); std::string header; std::getline(in,header);
-        if (header!="root\tin\tout") throw std::runtime_error("invalid frozen radii");
-        std::vector<Node> roots; Config cfg; Node v; int a,b;
-        while (in>>v>>a>>b) {
-            if(v>=g.n || (!roots.empty() && roots.back()>=v) || std::min(a,b)<0 || std::max(a,b)>max_radius)
-                throw std::runtime_error("invalid radius row");
-            roots.push_back(v); cfg.push_back(a);cfg.push_back(b);
-        }
-        if(!in.eof()) throw std::runtime_error("invalid radius file");
+    } else if (method=="uniform" || method=="adaptive" || method=="entry" || study) {
+        std::vector<Node> roots; Config cfg;
+        read_config(argv[7],g.n,roots,cfg);
         auto p=profiles(g,roots,cfg);
         if(method=="entry") {
             Index idx(p,roots,cfg);
             evaluate(qs,dest,[&](const Query& q){return idx.query(g,search,q);},idx.bytes(),seconds(start));
         } else {
             HotIndex idx(p,cfg,roots,g.n);
-            evaluate(qs,dest,[&](const Query& q){return idx.query(search,q);},idx.bytes(),seconds(start));
+            double setup=seconds(start);
+            if(study) export_table(idx,dest/"table.bin");
+            evaluate(qs,dest,[&](const Query& q){return idx.query(search,q);},idx.bytes(),setup,study,phase=="study-transfer");
         }
     } else throw std::runtime_error("unknown method");
 }

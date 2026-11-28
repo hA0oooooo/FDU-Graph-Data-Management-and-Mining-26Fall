@@ -129,6 +129,7 @@ def experiment(args):
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--study", choices=("demand-profile",))
     parser.add_argument("--graphs", nargs="+", default=list(GRAPHS))
     parser.add_argument("--fixed-k",type=int,choices=(2,4,6))
     parser.add_argument("--root-pool",choices=("trace","degree"),default="trace")
@@ -138,4 +139,11 @@ if __name__=="__main__":
     args=parser.parse_args()
     if args.pairs<1 or args.bytes_per_vertex<1:
         parser.error("pairs and byte budget must be positive")
-    experiment(args)
+    if args.study:
+        from demand_profile import experiment as demand_profile
+        destination = args.output
+        if destination == ROOT/"output/adaptive-radius/hotspot":
+            destination = ROOT/"output/adaptive-radius/demand-profile"
+        demand_profile(destination)
+    else:
+        experiment(args)
