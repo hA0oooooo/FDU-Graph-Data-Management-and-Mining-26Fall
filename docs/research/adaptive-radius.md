@@ -50,7 +50,7 @@ $$
 
 ##### 初步试验
 
-在 baojian 固定逻辑 CPU 46、每个进程 48 GiB、同一冻结混合阈值查询上，对 7 张不同结构的图执行主要 $4|V|$ 预算试验，3 张图补测 $|V|$、$8|V|$，Wiki-Vote 另测固定 $k=4$。第一次试验有 42 个候选配置、832,968 次首次批查询判定；强统一半径消融另有 36 个配置、719,964 次判定，均零错答。六张图的历史基线重新以相同 CPU 和内存运行，78 个配置全部通过
+在实验机器固定逻辑 CPU 46、每个进程 48 GiB、同一冻结混合阈值查询上，对 7 张不同结构的图执行主要 $4|V|$ 预算试验，3 张图补测 $|V|$、$8|V|$，Wiki-Vote 另测固定 $k=4$。第一次试验有 42 个候选配置、832,968 次首次批查询判定；强统一半径消融另有 36 个配置、719,964 次判定，均零错答。六张图的历史基线重新以相同 CPU 和内存运行，78 个配置全部通过
 
 下表取强统一半径消融的 $4|V|$ 结果，延迟为 12 轮平均延迟的中位数，构建包含全深探测、训练、选参和最终建表；标签数包含隐式零半径根记录
 
@@ -93,7 +93,7 @@ python3 src/radius/summarize.py output/adaptive-radius/pilot --baseline output/b
 python3 src/radius/summarize.py output/adaptive-radius/ablation --baseline output/baselines/runs/pilot/performance.tsv
 ```
 
-数据保存在 baojian 的以下本地目录
+数据保存在以下本地目录
 
 - output/adaptive-radius/pilot：初试、1n/4n/8n 预算及固定阈值记录
 - output/adaptive-radius/ablation：同预算强统一半径消融，每个配置有 build.tsv、repeats.tsv、comparison.tsv、逐条答案和 performance.tsv

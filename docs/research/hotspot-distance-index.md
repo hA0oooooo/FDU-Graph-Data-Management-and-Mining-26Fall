@@ -39,7 +39,7 @@
 
 ##### 运行与复查
 
-在 baojian 的仓库根目录运行。主实验使用混合 $k=2,4,6$，每个顶点 4 个辅助字节，同一 CPU、48 GiB 内存、单线程。选点和探测只使用训练集，验证集选择候选，全部配置冻结后核对正式查询。期间允许零索引，覆盖森林另列实际空间。统一和逐方向策略均将训练、探测和选参计入构建
+在仓库根目录运行。主实验使用混合 $k=2,4,6$，每个顶点 4 个辅助字节，同一 CPU、48 GiB 内存、单线程。选点和探测只使用训练集，验证集选择候选，全部配置冻结后核对正式查询。期间允许零索引，覆盖森林另列实际空间。统一和逐方向策略均将训练、探测和选参计入构建
 
 ~~~sh
 python3 src/radius/hotspot.py --output output/adaptive-radius/hotspot-replay
@@ -106,8 +106,21 @@ BerkStan 与 wiki-Vote 的混合负载上，自适应按需相对于裸搜索的
 ##### 正式结果复查
 
 ~~~sh
-python3 src/radius/hotspot.py --study demand-profile --output output/adaptive-radius/demand-profile
 python3 tests/check_demand_profile.py
 ~~~
 
-本机正式数据目录为 output/adaptive-radius/demand-profile/，包含 construction.tsv、main.tsv、transfer.tsv、summary.tsv、paired.tsv、transfer-combined.tsv、historical.tsv、protocol.json、frozen.json 及逐方法回执。训练与查询分别在独立进程执行，建表已得到的同一索引不重复计入常驻部署成本，重新加载半径后重建所需的实测时间另计入 restore_s 与 cold_cost_1m_s。构建及查询峰值 RSS 均记录进程实际高水位。已有的冻结配置和结果可在检查代码、参数、输入哈希及回执后复用
+本机正式数据目录为 output/adaptive-radius/demand-profile/，包含 construction.tsv、main.tsv、transfer.tsv、summary.tsv、paired.tsv、transfer-combined.tsv、historical.tsv、protocol.json、frozen.json 及逐方法回执。训练与查询分别在独立进程执行，建表已得到的同一索引不重复计入常驻部署成本，重新加载半径后重建所需的实测时间另计入 restore_s 与 cold_cost_1m_s。构建及查询峰值 RSS 均记录进程实际高水位。此复查入口校验已完成实验的每个回执，无需重新训练
+
+##### 复现条件
+
+新机器先按 [数据准备](../workflow/datasets.md) 生成规范图，沿用 Git 中冻结的查询文件。正式构建消融依赖前期 hotspot 实验的已冻结半径，历史排名依赖已有的九类基线回执。完整复现需要先生成或取得这两部分本地结果，并按正式协议绑定同一逻辑 CPU。程序默认使用逻辑 CPU 46 与 48 GiB 地址空间上限，实际机器资源应满足该配置
+
+```sh
+taskset -c 46 python3 src/run_baselines.py wiki-Vote web-BerkStan web-Google wiki-Talk p2p-Gnutella31 ER-2048-dense email-EuAll --output output/baselines/runs/standard
+python3 src/report_baselines.py output/baselines/runs/standard --output output/baselines/performance.tsv
+python3 src/rank_results.py output/baselines/performance.tsv --strict
+python3 src/radius/hotspot.py --output output/adaptive-radius/hotspot
+python3 src/radius/hotspot.py --study demand-profile --output output/adaptive-radius/demand-profile
+```
+
+上述七图基线运行用于新环境的最终方法复现。已经完成的正式数据直接使用 tests/check_demand_profile.py 核验。若需重测，独立输出到按用途命名的新目录，保护既有冻结配置和结果

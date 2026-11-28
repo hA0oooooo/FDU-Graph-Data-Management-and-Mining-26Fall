@@ -4,6 +4,9 @@
 src/
   baselines/             基线算法与作者实现适配
   radius/                自适应半径、索引与搜索
+    hotspot.py           最终方法及前期热点实验入口
+    demand_profile.py    正式实验编排
+    hotspot.cpp          索引构建和查询
   run_baselines.py       基线统一运行入口
   run_stress.py          高内存补跑与复查
   report_baselines.py    构建及查询结果汇总
@@ -16,13 +19,13 @@ dataset/
 docs/
   baselines/             基线机制与实测结果
   workflow/              数据、目录、运行和评测规范
-  research/              自适应方法与初步实验
+  research/              方法设计、消融和正式实验分析
 tests/                   独立正确性验证
 cache/                   可重建依赖与编译缓存
 output/                  本机实验数据与必要回执
 ```
 
-源码和可复现的清单、冻结查询随 Git 维护。原始图、规范边表、构建缓存、实验结果与本机配置不进入 Git。不为当前没有需求的模型或环境创建空目录
+源码、可复现的清单和冻结查询随 Git 维护。原始图与规范边表放在 dataset 的本地目录，编译缓存放 cache，实验结果放 output。机器路径及私有环境变量放 Git 忽略的 .env，本机开发计划和智能体说明也由 Git 忽略。公开命令均以仓库根目录为工作目录
 
 ##### 运行结果
 
@@ -55,6 +58,7 @@ python3 src/rank_results.py output/baselines/performance.tsv --strict
 python3 src/run_stress.py output/baselines/historical/performance.tsv --output output/baselines/pressure --review
 python3 src/baseline_coverage.py
 python3 tests/check_workloads.py
+python3 tests/check_demand_profile.py
 ```
 
-复查不重新建立已完成的索引。正式比较按 [评测规范](evaluation.md) 执行；不同资源组不直接混排
+复查不重新建立已完成的索引。上述命令需要对应本地数据与回执。正式方法执行入口与新环境复现条件见 [方法说明](../research/hotspot-distance-index.md)，资源组按 [评测规范](evaluation.md) 比较
